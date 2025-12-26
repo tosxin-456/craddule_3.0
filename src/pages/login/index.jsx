@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // import useNavigate
 import logo from "../../assets/logo.png";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -10,6 +11,8 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
   const navigate = useNavigate(); // initialize navigate
 
   const handleChange = (e) => {
@@ -19,11 +22,44 @@ export default function LoginPage() {
     });
   };
 
-  const handleSubmit = () => {
-    console.log("Login submitted:", formData);
-    // alert("Login successful! (Demo only)");
-    navigate('/dashboard')
-  };
+const handleSubmit = async () => {
+  setError("");
+  setLoading(true);
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/users/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Login failed");
+    }
+
+    const { token, user } = data;
+
+    // Store token based on remember me
+    if (rememberMe) {
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      sessionStorage.setItem("token", token);
+      sessionStorage.setItem("user", JSON.stringify(user));
+    }
+
+    navigate("/dashboard");
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleGoogleSignIn = () => {
     // alert("Google Sign-In would be initiated here");
@@ -45,6 +81,13 @@ export default function LoginPage() {
             </h2>
             <p className="text-gray-600">Sign in to continue to your account</p>
           </div>
+
+          {/* ERROR */}
+          {error && (
+            <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg">
+              {error}
+            </div>
+          )}
 
           {/* Google Sign In Button */}
           <button
@@ -146,9 +189,13 @@ export default function LoginPage() {
 
             <button
               onClick={handleSubmit}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
             >
-              Sign In
+              {loading && (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              )}
+              {!loading && "Sign In"}
             </button>
           </div>
 

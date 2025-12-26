@@ -8,10 +8,12 @@ import {
   Brain,
   Loader2
 } from "lucide-react";
+import { API_BASE_URL } from "../../config/apiConfig";
+import { useNavigate } from "react-router-dom";
 
 const questions = [
   {
-    label: "What problem are you solving?",
+    label: "Write briefly about your business",
     hint: "Describe the real-world problem your business addresses.",
     placeholder:
       "Example: Small businesses struggle to manage cash flow because they lack visibility into upcoming expenses and revenue..."
@@ -27,12 +29,6 @@ const questions = [
     hint: "Alternatives, workarounds, or competitors.",
     placeholder:
       "Example: Most use spreadsheets or basic accounting software, but these don't provide predictive insights..."
-  },
-  {
-    label: "Who is currently involved in building or running this business?",
-    hint: "Founders, co-founders, employees, contractors, or advisors (if any).",
-    placeholder:
-      "Example: Two co-founders (myself and a technical co-founder), one part-time advisor with fintech experience..."
   },
   {
     label:
@@ -54,12 +50,21 @@ const questions = [
       "Example: We have an MVP with 15 beta users and $2K in monthly recurring revenue..."
   },
   {
-    label: "Why do you believe this business can work?",
-    hint: "Experience, insight, demand signals, or assumptions.",
+    label:
+      "What are the key documents of your business, and why are they important?",
+    hint: "Include things like business brief, pitch deck, financials, market research, legal docs.",
     placeholder:
-      "Example: I've spent 10 years as a CFO for SMBs and personally experienced this pain. Early users report 30% time savings..."
+      "Example: Business brief for clarity, pitch deck for investors, financial forecast for planning, and legal documents for protection..."
+  },
+  {
+    label: "What traction or validation do you have so far?",
+    hint: "Evidence that your product/service has demand.",
+    placeholder:
+      "Example: 100+ beta signups, 20 paying customers, or partnerships with two local retailers..."
   }
 ];
+
+
 
 export default function FounderOnboarding() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -70,25 +75,83 @@ export default function FounderOnboarding() {
   const [isFocused, setIsFocused] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const token = localStorage.getItem("token"); // JWT from storage
 
+  useEffect(() => setMounted(true), []);
+  const navigate = useNavigate();
   const maxChars = 500;
   const currentQuestion = questions[currentStep];
   const progress = ((currentStep + 1) / questions.length) * 100;
+  const canProceed = answers[currentStep]?.trim().length > 0;
 
-  const handleComplete = () => {
-    setIsAnalyzing(true);
-    // Simulate AI analysis for 3 seconds
-    setTimeout(() => {
-      window.location.href = "/ai-walkthrough";
-    }, 3000);
+  // Save individual step to backend
+  const saveStep = async (step, answer) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/founder/onboarding/save-step`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ step, question: questions[step].label, answer })
+      });
+
+      const data = await res.json();
+      setLoading(false);
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to save step");
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Error saving step:", err);
+      setLoading(false);
+      return false;
+    }
   };
 
-  const handleNext = () => {
+  // Submit all answers at the end
+  const submitAll = async () => {
+    try {
+      setIsAnalyzing(true);
+      await fetch(`${API_BASE_URL}/founder/onboarding`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ answers })
+      });
+      setTimeout(() => {
+        navigate("/ai-walkthrough");
+      }, 3000);
+    } catch (err) {
+      console.error("Error submitting answers:", err);
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const value = e.target.value;
+    if (value.length <= maxChars) {
+      setAnswers({ ...answers, [currentStep]: value });
+      setCharCount(value.length);
+      saveStep(currentStep, value); // auto-save
+    }
+  };
+
+  const handleNext = async () => {
     if (!canProceed) return;
+
+    const success = await saveStep(currentStep, answers[currentStep]);
+    if (!success) {
+      alert("Failed to save your answer. Please try again.");
+      return;
+    }
 
     setIsAnimating(true);
     setDirection(1);
@@ -98,7 +161,7 @@ export default function FounderOnboarding() {
         setCurrentStep(currentStep + 1);
         setCharCount(answers[currentStep + 1]?.length || 0);
       } else {
-        handleComplete();
+        submitAll(); // final submission
       }
       setIsAnimating(false);
     }, 300);
@@ -117,27 +180,19 @@ export default function FounderOnboarding() {
     }, 300);
   };
 
-  const handleChange = (e) => {
-    const value = e.target.value;
-    if (value.length <= maxChars) {
-      setAnswers({ ...answers, [currentStep]: value });
-      setCharCount(value.length);
+  const handleSkip = async () => {
+    const success = await saveStep(currentStep, "No answer provided");
+    if (!success) {
+      alert("Failed to save your skipped answer. Please try again.");
+      return;
     }
-  };
-
-  const handleSkip = () => {
     setAnswers({ ...answers, [currentStep]: "No answer provided" });
-    setTimeout(() => {
-      handleNext();
-    }, 100);
+    handleNext();
   };
-
-  const canProceed = answers[currentStep]?.trim().length > 0;
 
   if (isAnalyzing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse" />
           <div

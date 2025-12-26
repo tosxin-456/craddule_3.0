@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Mail, Lock, User, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
-
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -13,6 +13,8 @@ export default function SignUpPage() {
   });
 
   const navigate = useNavigate(); // initialize navigate
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     setFormData({
@@ -21,17 +23,53 @@ export default function SignUpPage() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    // alert("Sign up successful! (Demo only)");
-    navigate("/onboarding");
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          fullName: formData.name,
+          email: formData.email,
+          phoneNumber: formData.phone,
+          password: formData.password,
+          startupName: "My Startup", // default or you can add input field
+          industry: "Tech", // default or input field
+          stage: "Idea", // default or input field
+          country: "Nigeria" // default or input field
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Sign up failed");
+      }
+
+      const { token, user } = data;
+
+      // store token in localStorage/sessionStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // redirect to onboarding or dashboard
+      navigate("/onboarding");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleSignIn = () => {
     // alert("Google Sign-In would be initiated here");
     navigate("/onboarding");
-
   };
 
   return (
@@ -69,6 +107,11 @@ export default function SignUpPage() {
             </h2>
             <p className="text-gray-600">Sign up to get started</p>
           </div>
+          {error && (
+            <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg">
+              {error}
+            </div>
+          )}
 
           {/* Google Sign In Button */}
           <button
@@ -180,9 +223,13 @@ export default function SignUpPage() {
 
             <button
               onClick={handleSubmit}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
             >
-              Create Account
+              {loading && (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              )}
+              {!loading && "Create Account"}
             </button>
           </div>
 
