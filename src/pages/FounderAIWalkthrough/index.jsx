@@ -371,7 +371,7 @@ function ResultStage({ businessModel, onViewDocument }) {
 function ModelCard({ icon: Icon, title, content, color }) {
   const colorClasses = {
     blue: "from-blue-50 to-blue-100 border-blue-200 text-blue-600",
-    blue: "from-blue-50 to-blue-100 border-blue-200 text-blue-600",
+    purple: "from-purple-50 to-purple-100 border-purple-200 text-purple-600",
     indigo: "from-indigo-50 to-indigo-100 border-indigo-200 text-indigo-600",
     pink: "from-pink-50 to-pink-100 border-pink-200 text-pink-600",
     green: "from-green-50 to-green-100 border-green-200 text-green-600",

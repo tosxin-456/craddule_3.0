@@ -27,30 +27,30 @@ const handleSubmit = async () => {
   setLoading(true);
 
   try {
-    const res = await fetch(`${API_BASE_URL}/users/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(formData)
-    });
+  //   const res = await fetch(`${API_BASE_URL}/users/login`, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json"
+  //     },
+  //     body: JSON.stringify(formData)
+  //   });
 
-    const data = await res.json();
+  //   const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.message || "Login failed");
-    }
+  //   if (!res.ok) {
+  //     throw new Error(data.message || "Login failed");
+  //   }
 
-    const { token, user } = data;
+  //   const { token, user } = data;
 
-    // Store token based on remember me
-    if (rememberMe) {
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-    } else {
-      sessionStorage.setItem("token", token);
-      sessionStorage.setItem("user", JSON.stringify(user));
-    }
+  //   // Store token based on remember me
+  //   if (rememberMe) {
+  //     localStorage.setItem("token", token);
+  //     localStorage.setItem("user", JSON.stringify(user));
+  //   } else {
+  //     sessionStorage.setItem("token", token);
+  //     sessionStorage.setItem("user", JSON.stringify(user));
+  //   }
 
     navigate("/dashboard");
   } catch (err) {

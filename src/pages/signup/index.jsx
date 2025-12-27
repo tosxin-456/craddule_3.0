@@ -29,34 +29,34 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/users/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          fullName: formData.name,
-          email: formData.email,
-          phoneNumber: formData.phone,
-          password: formData.password,
-          startupName: "My Startup", // default or you can add input field
-          industry: "Tech", // default or input field
-          stage: "Idea", // default or input field
-          country: "Nigeria" // default or input field
-        })
-      });
+      // const res = await fetch(`${API_BASE_URL}/users/register`, {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json"
+      //   },
+      //   body: JSON.stringify({
+      //     fullName: formData.name,
+      //     email: formData.email,
+      //     phoneNumber: formData.phone,
+      //     password: formData.password,
+      //     startupName: "My Startup", // default or you can add input field
+      //     industry: "Tech", // default or input field
+      //     stage: "Idea", // default or input field
+      //     country: "Nigeria" // default or input field
+      //   })
+      // });
 
-      const data = await res.json();
+      // const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.message || "Sign up failed");
-      }
+      // if (!res.ok) {
+      //   throw new Error(data.message || "Sign up failed");
+      // }
 
-      const { token, user } = data;
+      // const { token, user } = data;
 
-      // store token in localStorage/sessionStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      // // store token in localStorage/sessionStorage
+      // localStorage.setItem("token", token);
+      // localStorage.setItem("user", JSON.stringify(user));
 
       // redirect to onboarding or dashboard
       navigate("/onboarding");
