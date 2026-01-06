@@ -11,8 +11,8 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate(); // initialize navigate
 
   const handleChange = (e) => {
@@ -27,32 +27,33 @@ const handleSubmit = async () => {
   setLoading(true);
 
   try {
-  //   const res = await fetch(`${API_BASE_URL}/users/login`, {
-  //     method: "POST",
-  //     headers: {
-  //       "Content-Type": "application/json"
-  //     },
-  //     body: JSON.stringify(formData)
-  //   });
+    const res = await fetch(`${API_BASE_URL}/users/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(formData)
+    });
 
-  //   const data = await res.json();
+    const data = await res.json();
+    console.log("LOGIN RESPONSE:", data);
 
-  //   if (!res.ok) {
-  //     throw new Error(data.message || "Login failed");
-  //   }
+    if (!res.ok) {
+      throw new Error(data.message || "Login failed");
+    }
 
-  //   const { token, user } = data;
+    const { token, user } = data.data ?? data;
 
-  //   // Store token based on remember me
-  //   if (rememberMe) {
-  //     localStorage.setItem("token", token);
-  //     localStorage.setItem("user", JSON.stringify(user));
-  //   } else {
-  //     sessionStorage.setItem("token", token);
-  //     sessionStorage.setItem("user", JSON.stringify(user));
-  //   }
+    if (!token) {
+      throw new Error("Token missing from server response");
+    }
 
-    navigate("/dashboard");
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    navigate(
+      user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
+    );
   } catch (err) {
     setError(err.message);
   } finally {
@@ -64,7 +65,6 @@ const handleSubmit = async () => {
   const handleGoogleSignIn = () => {
     // alert("Google Sign-In would be initiated here");
     navigate("/dashboard");
-
   };
 
   return (

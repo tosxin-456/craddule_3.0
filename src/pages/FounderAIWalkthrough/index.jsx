@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sparkles,
   ArrowRight,
@@ -13,64 +13,99 @@ import {
   TrendingUp,
   CheckCircle,
   Zap,
-  Edit3
+  Edit3,
+  BarChart,
+  Award,
+  Globe,
+  Heart,
+  Shield
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function FounderAIWalkthrough() {
   const [stage, setStage] = useState("chat"); // chat, generating, result, document
   const [messages, setMessages] = useState([
     {
-      role: "ai",
+      role: "assistant",
       content:
         "Hi! I've reviewed your onboarding responses. Let's refine your business idea together. Tell me about your business in your own words - what are you building and why?"
     }
   ]);
   const [input, setInput] = useState("");
   const [finalIdea, setFinalIdea] = useState("");
+  const [businessModel, setBusinessModel] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
 
-  const businessModel = {
-    problemStatement:
-      "Small businesses lack predictive cash flow visibility, leading to poor financial decisions and business failures.",
-    solution:
-      "AI-powered cash flow forecasting platform with actionable recommendations",
-    targetMarket:
-      "Small businesses (5-50 employees) in retail and hospitality sectors",
-    valueProposition:
-      "Save 30% of time on financial planning while improving cash flow prediction accuracy by 85%",
-    revenueModel:
-      "SaaS subscription: $99/month (Starter), $299/month (Professional), $599/month (Enterprise)",
-    keyMetrics: "MRR, Customer Acquisition Cost, Churn Rate, Forecast Accuracy",
-    competitiveAdvantage:
-      "AI-driven predictions vs. static reporting from competitors",
-    goToMarket:
-      "Content marketing, partnerships with accounting firms, freemium model"
-  };
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/conversations`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
+        });
 
-  const sendMessage = () => {
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.data)) {
+          // Map backend roles to frontend roles
+          const formattedMessages = data.data.map((msg) => ({
+            role: msg.role === "ai" ? "assistant" : "user", // map 'ai' -> 'assistant'
+            content: msg.content
+          }));
+          console.log(formattedMessages);
+          setMessages(formattedMessages);
+        }
+      } catch (err) {
+        console.error("Failed to fetch messages", err);
+      }
+    };
+
+    fetchMessages();
+  }, []);
+
+  const sendMessage = async () => {
     if (!input.trim()) return;
 
     const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponses = [
-        "That's a great start! Let me understand better - who specifically experiences this problem? Can you describe your target customer in more detail?",
-        "Interesting! And how are people currently solving this problem? What alternatives exist?",
-        "Perfect. Now, what makes your solution different or better than what's out there? What's your unique advantage?",
-        "Excellent insights! I think we have enough to generate a comprehensive business model. Would you like me to create it now?"
-      ];
-
-      const responseIndex = Math.min(
-        messages.filter((m) => m.role === "user").length,
-        aiResponses.length - 1
-      );
-      const aiMessage = { role: "ai", content: aiResponses[responseIndex] };
-      setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
-
     setInput("");
+    setIsTyping(true); // Start typing indicator
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/conversations/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ message: input })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to get AI response");
+      }
+
+      // Add AI response
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.data.content }
+      ]);
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Oops! Something went wrong. Please try again."
+        }
+      ]);
+    } finally {
+      setIsTyping(false); // Stop typing indicator
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -80,18 +115,35 @@ export default function FounderAIWalkthrough() {
     }
   };
 
-  const generateBusinessModel = () => {
-    // Capture the conversation as the final idea
+  const generateBusinessModel = async () => {
     const userMessages = messages
       .filter((m) => m.role === "user")
       .map((m) => m.content)
       .join(" ");
+
     setFinalIdea(userMessages);
     setStage("generating");
 
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/business/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ userId: localStorage.getItem("userId") })
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Failed to generate");
+
+      setBusinessModel(data.data); // <-- THIS is what your DocumentStage and ResultStage need
       setStage("result");
-    }, 3000);
+    } catch (err) {
+      console.error(err);
+      setStage("chat");
+      alert("Failed to generate business model. Try again.");
+    }
   };
 
   const viewDocument = () => {
@@ -102,7 +154,7 @@ export default function FounderAIWalkthrough() {
     setStage("chat");
     setMessages([
       {
-        role: "ai",
+        role: "assistant",
         content:
           "Hi! I've reviewed your onboarding responses. Let's refine your business idea together. Tell me about your business in your own words - what are you building and why?"
       }
@@ -123,6 +175,7 @@ export default function FounderAIWalkthrough() {
             handleKeyPress={handleKeyPress}
             onGenerate={generateBusinessModel}
             canGenerate={messages.filter((m) => m.role === "user").length >= 2}
+            isTyping={isTyping}
           />
         )}
 
@@ -154,7 +207,8 @@ function ChatStage({
   sendMessage,
   handleKeyPress,
   onGenerate,
-  canGenerate
+  canGenerate,
+  isTyping
 }) {
   return (
     <div className="flex flex-col h-[85vh]">
@@ -166,7 +220,7 @@ function ChatStage({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              AI Business Model Generator
+              Abby
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
               Let's refine your business idea together
@@ -180,6 +234,17 @@ function ChatStage({
         {messages.map((msg, idx) => (
           <MessageBubble key={idx} role={msg.role} content={msg.content} />
         ))}
+
+        {isTyping && (
+          <div className="flex justify-start animate-fadeIn">
+            <div className="max-w-[40%] rounded-2xl px-5 py-3 text-sm leading-relaxed shadow-sm bg-gradient-to-br from-slate-100 to-slate-50 text-slate-800 border border-slate-200 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
+              <span className="text-xs text-indigo-600">
+                AI Assistant is typing...
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Input Area */}
@@ -219,7 +284,7 @@ function ChatStage({
 }
 
 function MessageBubble({ role, content }) {
-  const isAI = role === "ai";
+  const isAI = role === "assistant";
 
   return (
     <div
@@ -296,98 +361,174 @@ function LoadingStep({ text, delay }) {
   );
 }
 
-/* ---------- Result Stage ---------- */
+
 function ResultStage({ businessModel, onViewDocument }) {
+  if (!businessModel) return null;
+
+  const sections = [
+    {
+      title: "Problem Statement",
+      value: businessModel.problemStatement,
+      icon: Target,
+      color: "blue",
+      gradient: "from-blue-500 to-cyan-500"
+    },
+    {
+      title: "Solution",
+      value: businessModel.solution,
+      icon: Rocket,
+      color: "blue",
+      gradient: "from-indigo-500 to-blue-500"
+    },
+    {
+      title: "Target Market",
+      value: businessModel.targetMarket,
+      icon: Users,
+      color: "indigo",
+      gradient: "from-violet-500 to-purple-500"
+    },
+    {
+      title: "Value Proposition",
+      value: businessModel.valueProposition,
+      icon: Sparkles,
+      color: "pink",
+      gradient: "from-pink-500 to-rose-500"
+    },
+    {
+      title: "Revenue Model",
+      value: businessModel.revenueModel,
+      icon: DollarSign,
+      color: "green",
+      gradient: "from-emerald-500 to-teal-500"
+    },
+    {
+      title: "Key Metrics",
+      value: businessModel.keyMetrics,
+      icon: BarChart,
+      color: "purple",
+      gradient: "from-purple-500 to-indigo-500"
+    },
+    {
+      title: "Competitive Advantage",
+      value: businessModel.competitiveAdvantage,
+      icon: Award,
+      color: "indigo",
+      gradient: "from-amber-500 to-orange-500"
+    },
+    {
+      title: "Go-to-Market Strategy",
+      value: businessModel.goToMarket,
+      icon: TrendingUp,
+      color: "orange",
+      gradient: "from-orange-500 to-red-500"
+    }
+  ];
+
   return (
     <div className="p-8 md:p-12 max-h-[85vh] overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="h-12 w-12 rounded-xl bg-green-500 flex items-center justify-center">
-          <CheckCircle className="w-6 h-6 text-white" />
+      {/* Animated Header */}
+      <div className="flex items-center gap-4 mb-8 animate-fadeIn">
+        <div className="relative">
+          <div className="absolute inset-0 bg-green-500 rounded-xl blur-lg opacity-50 animate-pulse"></div>
+          <div className="relative h-14 w-14 rounded-xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg">
+            <CheckCircle className="w-7 h-7 text-white" />
+          </div>
         </div>
+
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Business Model Generated!
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+            Business Model Canvas
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Here's your comprehensive business model
+          <p className="text-slate-600 mt-1 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-500" />
+            AI-generated strategic framework
           </p>
         </div>
       </div>
 
-      {/* Business Model Cards */}
-      <div className="space-y-4 mb-6">
-        <ModelCard
-          icon={Target}
-          title="Problem Statement"
-          content={businessModel.problemStatement}
-          color="blue"
-        />
-        <ModelCard
-          icon={Rocket}
-          title="Solution"
-          content={businessModel.solution}
-          color="blue"
-        />
-        <ModelCard
-          icon={Users}
-          title="Target Market"
-          content={businessModel.targetMarket}
-          color="indigo"
-        />
-        <ModelCard
-          icon={Sparkles}
-          title="Value Proposition"
-          content={businessModel.valueProposition}
-          color="pink"
-        />
-        <ModelCard
-          icon={DollarSign}
-          title="Revenue Model"
-          content={businessModel.revenueModel}
-          color="green"
-        />
-        <ModelCard
-          icon={TrendingUp}
-          title="Go-to-Market Strategy"
-          content={businessModel.goToMarket}
-          color="orange"
-        />
+      {/* Enhanced Sections Grid */}
+      <div className="grid gap-4 mb-8">
+        {sections
+          .filter((s) => s.value)
+          .map(({ title, value, icon, color, gradient }, index) => (
+            <div
+              key={title}
+              className="animate-slideUp"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <EnhancedModelCard
+                icon={icon}
+                title={title}
+                content={value}
+                color={color}
+                gradient={gradient}
+              />
+            </div>
+          ))}
       </div>
 
-      {/* Action Button */}
+      {/* Enhanced CTA */}
       <button
         onClick={onViewDocument}
-        className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl py-4 px-6 font-semibold text-lg hover:from-indigo-700 hover:to-blue-700 transition flex items-center justify-center gap-3 shadow-lg"
+        className="group w-full bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 bg-size-200 bg-pos-0 hover:bg-pos-100 text-white rounded-xl py-5 px-6 font-semibold text-lg flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] relative overflow-hidden"
       >
-        <FileText className="w-5 h-5" />
-        View Full Document
-        <ArrowRight className="w-5 h-5" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+        <FileText className="w-5 h-5 relative z-10" />
+        <span className="relative z-10">View Full Document</span>
+        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform relative z-10" />
       </button>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.6s ease-out;
+        }
+        .animate-slideUp {
+          animation: slideUp 0.6s ease-out both;
+        }
+        .bg-size-200 {
+          background-size: 200% 100%;
+        }
+        .bg-pos-0 {
+          background-position: 0% 0%;
+        }
+        .bg-pos-100 {
+          background-position: 100% 0%;
+        }
+      `}</style>
     </div>
   );
 }
 
-function ModelCard({ icon: Icon, title, content, color }) {
+function EnhancedModelCard({ icon: Icon, title, content, color, gradient }) {
   const colorClasses = {
-    blue: "from-blue-50 to-blue-100 border-blue-200 text-blue-600",
-    purple: "from-purple-50 to-purple-100 border-purple-200 text-purple-600",
-    indigo: "from-indigo-50 to-indigo-100 border-indigo-200 text-indigo-600",
-    pink: "from-pink-50 to-pink-100 border-pink-200 text-pink-600",
-    green: "from-green-50 to-green-100 border-green-200 text-green-600",
-    orange: "from-orange-50 to-orange-100 border-orange-200 text-orange-600"
+    blue: "from-blue-50 to-cyan-50 border-blue-200 text-blue-600",
+    purple: "from-purple-50 to-violet-50 border-purple-200 text-purple-600",
+    indigo: "from-indigo-50 to-blue-50 border-indigo-200 text-indigo-600",
+    pink: "from-pink-50 to-rose-50 border-pink-200 text-pink-600",
+    green: "from-emerald-50 to-teal-50 border-emerald-200 text-emerald-600",
+    orange: "from-orange-50 to-amber-50 border-orange-200 text-orange-600"
   };
 
   return (
     <div
-      className={`bg-gradient-to-r ${colorClasses[color]} rounded-lg p-5 border`}
+      className={`group bg-gradient-to-br ${colorClasses[color]} rounded-xl p-6 border-2 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] cursor-pointer`}
     >
-      <div className="flex items-start gap-3">
-        <Icon
-          className={`w-5 h-5 mt-0.5 ${colorClasses[color].split(" ")[2]}`}
-        />
-        <div>
-          <h3 className="font-semibold text-slate-900 mb-1">{title}</h3>
+      <div className="flex items-start gap-4">
+        <div
+          className={`h-11 w-11 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md flex-shrink-0 group-hover:scale-110 transition-transform`}
+        >
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-slate-900 mb-2 text-base">{title}</h3>
           <p className="text-slate-700 text-sm leading-relaxed">{content}</p>
         </div>
       </div>
@@ -395,114 +536,150 @@ function ModelCard({ icon: Icon, title, content, color }) {
   );
 }
 
-/* ---------- Document Stage ---------- */
 function DocumentStage({ businessModel, onStartOver }) {
-  const navigate = useNavigate();
+  const handleExport = () => {
+    alert("PDF export functionality would be implemented here");
+  };
 
   return (
     <div className="p-8 md:p-12 max-h-[85vh] overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Enhanced Header */}
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
-            <FileText className="w-6 h-6 text-white" />
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl blur-md opacity-40"></div>
+            <div className="relative h-14 w-14 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+              <FileText className="w-7 h-7 text-white" />
+            </div>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
               Business Model Canvas
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Complete business model documentation
+            <p className="text-slate-600 mt-1 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-blue-500" />
+              Complete strategic documentation
             </p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium">
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl hover:from-indigo-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg text-sm font-semibold transform hover:scale-105"
+        >
           <Download className="w-4 h-4" />
           Export PDF
         </button>
       </div>
 
-      {/* Document Content */}
-      <div className="bg-slate-50 rounded-xl p-8 border border-slate-200 space-y-6">
-        <DocumentSection
+      {/* Enhanced Document Content */}
+      <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-10 border-2 border-slate-200 shadow-inner space-y-8">
+        <EnhancedDocumentSection
           title="Executive Summary"
           content="This business model addresses the critical challenge of cash flow management for small businesses through an AI-powered forecasting platform. By providing predictive insights rather than reactive reporting, we enable business owners to make proactive financial decisions."
+          icon={Sparkles}
+          gradient="from-amber-500 to-orange-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Problem Statement"
           content={businessModel.problemStatement}
+          icon={Target}
+          gradient="from-red-500 to-pink-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Solution Overview"
           content={businessModel.solution}
+          icon={Rocket}
+          gradient="from-blue-500 to-indigo-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Target Market"
           content={businessModel.targetMarket}
+          icon={Users}
+          gradient="from-purple-500 to-violet-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Value Proposition"
           content={businessModel.valueProposition}
+          icon={Heart}
+          gradient="from-pink-500 to-rose-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Revenue Model"
           content={businessModel.revenueModel}
+          icon={DollarSign}
+          gradient="from-emerald-500 to-teal-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Key Metrics"
           content={businessModel.keyMetrics}
+          icon={BarChart}
+          gradient="from-indigo-500 to-purple-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Competitive Advantage"
           content={businessModel.competitiveAdvantage}
+          icon={Shield}
+          gradient="from-cyan-500 to-blue-500"
         />
 
-        <DocumentSection
+        <EnhancedDocumentSection
           title="Go-to-Market Strategy"
           content={businessModel.goToMarket}
+          icon={TrendingUp}
+          gradient="from-orange-500 to-red-500"
         />
 
-        <div className="pt-6 border-t border-slate-300">
-          <p className="text-xs text-slate-500 text-center">
+        <div className="pt-8 border-t-2 border-slate-300">
+          <p className="text-xs text-slate-500 text-center font-medium">
             Generated by AI Business Model Generator •{" "}
-            {new Date().toLocaleDateString()}
+            {new Date().toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric"
+            })}
           </p>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-4 mt-6">
+      {/* Enhanced Action Buttons */}
+      <div className="flex gap-4 mt-8">
         <button
           onClick={onStartOver}
-          className="flex-1 bg-white border border-slate-300 text-slate-700 rounded-lg py-3 px-4 font-medium hover:bg-slate-50 transition flex items-center justify-center gap-2"
+          className="flex-1 bg-white border-2 border-slate-300 text-slate-700 rounded-xl py-4 px-6 font-semibold hover:bg-slate-50 hover:border-slate-400 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md transform hover:scale-[1.02]"
         >
-          <ArrowRight className="w-4 h-4 rotate-180" />
+          <ArrowRight className="w-5 h-5 rotate-180" />
           Start Over
         </button>
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg py-3 px-4 font-medium hover:from-indigo-700 hover:to-blue-700 transition flex items-center justify-center gap-2"
-        >
+        <button className="flex-1 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 text-white rounded-xl py-4 px-6 font-semibold hover:from-indigo-700 hover:to-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
           Continue to Dashboard
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-5 h-5" />
         </button>
       </div>
     </div>
   );
 }
 
-function DocumentSection({ title, content }) {
+function EnhancedDocumentSection({ title, content, icon: Icon, gradient }) {
   return (
-    <div>
-      <h2 className="text-lg font-bold text-slate-900 mb-2">{title}</h2>
-      <p className="text-slate-700 leading-relaxed">{content}</p>
+    <div className="group">
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className={`h-10 w-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}
+        >
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+      </div>
+      <div className="pl-[52px]">
+        <p className="text-slate-700 leading-relaxed text-[15px]">{content}</p>
+      </div>
     </div>
   );
 }

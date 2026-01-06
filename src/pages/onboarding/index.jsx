@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ClipboardList,
   ArrowRight,
@@ -6,8 +6,15 @@ import {
   CheckCircle,
   Sparkles,
   Brain,
-  Loader2
+  Loader2,
+  AlertCircle,
+  Lightbulb,
+  TrendingUp,
+  RefreshCw,
+  Home
 } from "lucide-react";
+import { API_BASE_URL } from "../../config/apiConfig";
+import { useNavigate } from "react-router-dom";
 
 const questions = [
   {
@@ -61,6 +68,11 @@ const questions = [
   }
 ];
 
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("token") || ""}`
+});
+
 export default function FounderOnboarding() {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -71,21 +83,36 @@ export default function FounderOnboarding() {
   const [mounted, setMounted] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [loading, setLoading] = useState(false);
-
+  const [showReview, setShowReview] = useState(false);
+  const [review, setReview] = useState(null);
+  const navigate = useNavigate();
   useEffect(() => setMounted(true), []);
 
   const maxChars = 500;
   const currentQuestion = questions[currentStep];
-  const progress = ((currentStep + 1) / questions.length) * 100;
+  const progress = showReview
+    ? 100
+    : ((currentStep + 1) / questions.length) * 100;
   const canProceed = answers[currentStep]?.trim().length > 0;
 
   const saveStep = async (step, answer) => {
     try {
       setLoading(true);
-      // Simulated save
-      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const res = await fetch(`${API_BASE_URL}/onboarding/save-step`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          step,
+          question: questions[step].label,
+          answer
+        })
+      });
+
+      const data = await res.json();
+
       setLoading(false);
-      return true;
+      return res.ok;
     } catch (err) {
       console.error("Error saving step:", err);
       setLoading(false);
@@ -93,34 +120,86 @@ export default function FounderOnboarding() {
     }
   };
 
+  const fetchLatestReview = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/onboarding/review`, {
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      setLoading(false);
+
+      if (res.ok) {
+        setReview(data.aiReview);
+        console.log(data.aiReview)
+        setShowReview(true);
+      } else {
+        console.error("Failed to fetch review:", data);
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch latest review when component mounts
+    fetchLatestReview();
+  }, []); 
+
   const submitAll = async () => {
+    if (isAnalyzing) return; // 🔒 prevent double submit
+    setIsAnalyzing(true);
+
     try {
       setIsAnalyzing(true);
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      alert("Onboarding complete!");
+
+      const res = await fetch(`${API_BASE_URL}/onboarding/`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          answers
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Submission failed");
+      }
+
+      const { aiReview } = data;
+      setReview(aiReview);
+      setIsAnalyzing(false);
+
+      // Show review inline
+      if (aiReview.status === "ok") {
+        setShowReview(true);
+      } else {
+        setShowReview(true);
+      }
     } catch (err) {
-      console.error("Error submitting answers:", err);
+      console.error(err);
+      alert(err.message);
       setIsAnalyzing(false);
     }
   };
 
+  const saveTimeout = useRef(null);
+
   const handleChange = (e) => {
     const value = e.target.value;
-    if (value.length <= maxChars) {
-      setAnswers({ ...answers, [currentStep]: value });
-      setCharCount(value.length);
+    setAnswers({ ...answers, [currentStep]: value });
+    setCharCount(value.length);
+
+    clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => {
       saveStep(currentStep, value);
-    }
+    }, 800);
   };
 
   const handleNext = async () => {
     if (!canProceed) return;
-
-    const success = await saveStep(currentStep, answers[currentStep]);
-    if (!success) {
-      alert("Failed to save your answer. Please try again.");
-      return;
-    }
 
     setIsAnimating(true);
     setDirection(1);
@@ -159,6 +238,23 @@ export default function FounderOnboarding() {
     handleNext();
   };
 
+  const handleReviseAnswers = () => {
+    setShowReview(false);
+    setReview(null);
+    setCurrentStep(0);
+    setCharCount(answers[0]?.length || 0);
+  };
+
+  const handlePrimaryAction = () => {
+    const isApproved = review.status === "ok";
+    if (isApproved) {
+      navigate("/dashboard");
+    } else {
+      navigate("/ai-walkthrough");
+    }
+  };
+
+  // Analyzing State
   if (isAnalyzing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 flex items-center justify-center p-4 relative overflow-hidden">
@@ -207,6 +303,201 @@ export default function FounderOnboarding() {
     );
   }
 
+  // Review State
+  if (showReview && review) {
+    const isApproved = review.status === "ok" || review.status === "approved";
+    const scoreColor =
+      review.score >= 80
+        ? "text-green-600"
+        : review.score >= 60
+        ? "text-amber-600"
+        : "text-orange-600";
+    const scoreBgColor =
+      review.score >= 80
+        ? "from-green-500 to-emerald-500"
+        : review.score >= 60
+        ? "from-amber-500 to-orange-500"
+        : "from-orange-500 to-red-500";
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 p-4 sm:p-6 md:p-8 relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse" />
+          <div
+            className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse"
+            style={{ animationDelay: "1s" }}
+          />
+        </div>
+
+        <div
+          className={`max-w-4xl mx-auto relative transition-all duration-700 ${
+            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
+          {/* Header Card */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 overflow-hidden mb-6">
+            <div className={`h-2 bg-gradient-to-r ${scoreBgColor}`} />
+
+            <div className="p-6 sm:p-8 md:p-10">
+              <div className="flex items-start gap-4 sm:gap-6 mb-6">
+                <div className="relative flex-shrink-0">
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${scoreBgColor} rounded-2xl blur-lg opacity-50`}
+                  />
+                  <div
+                    className={`relative h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-gradient-to-br ${scoreBgColor} flex items-center justify-center`}
+                  >
+                    {isApproved ? (
+                      <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                    ) : (
+                      <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-2">
+                    {isApproved
+                      ? "Great Start! 🎉"
+                      : "Let's Refine Your Answers"}
+                  </h1>
+                  <p className="text-slate-600 text-sm sm:text-base">
+                    {isApproved
+                      ? "Your onboarding answers show promise. Here's what we found:"
+                      : "We've reviewed your answers and have some suggestions to strengthen them."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Score Display */}
+              <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl sm:rounded-2xl p-6 border border-slate-200 shadow-lg">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600 mb-1">
+                      Overall Score
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <span
+                        className={`text-4xl sm:text-5xl font-bold ${scoreColor}`}
+                      >
+                        {review.score}
+                      </span>
+                      <span className="text-xl text-slate-400 font-semibold">
+                        /100
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className={`w-5 h-5 ${scoreColor}`} />
+                    <div className="h-2 w-32 sm:w-48 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full bg-gradient-to-r ${scoreBgColor} transition-all duration-1000 ease-out`}
+                        style={{ width: `${review.score}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback Card */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 p-6 sm:p-8 mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                AI Feedback
+              </h2>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100">
+              <p className="text-slate-700 leading-relaxed text-sm sm:text-base">
+                {review.feedback}
+              </p>
+            </div>
+          </div>
+
+          {/* Suggestions Card */}
+          {review.suggestions && review.suggestions.length > 0 && (
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 p-6 sm:p-8 mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                  <Lightbulb className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                  Suggestions for Improvement
+                </h2>
+              </div>
+
+              <div className="space-y-3">
+                {review.suggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className="group bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-100 hover:border-amber-200 transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold mt-0.5">
+                        {index + 1}
+                      </div>
+                      <p className="text-slate-700 leading-relaxed text-sm sm:text-base flex-1">
+                        {suggestion}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {!isApproved && (
+                <button
+                  onClick={handleReviseAnswers}
+                  className="group relative flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white transition-all transform hover:scale-105 active:scale-95 overflow-hidden shadow-xl flex-1"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <RefreshCw className="relative w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                  <span className="relative">Revise Answers</span>
+                </button>
+              )}
+
+              <button
+                onClick={handlePrimaryAction}
+                className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all transform hover:scale-105 active:scale-95 flex-1"
+              >
+                {isApproved ? (
+                  <>
+                    <span>Go to Dashboard</span>
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                ) : (
+                  <>
+                    <Brain className="w-5 h-5" />
+                    <span>Refine with AI</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {!isApproved && (
+              <p className="text-xs sm:text-sm text-slate-500 text-center mt-4">
+                💡 Tip: Refining your answers now will help us provide better
+                support later
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Onboarding Questions State
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -365,43 +656,19 @@ export default function FounderOnboarding() {
               <button
                 onClick={handleNext}
                 disabled={!canProceed}
-                className="group relative flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 disabled:hover:scale-100 overflow-hidden shadow-xl"
+                className="group relative flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4rounded-xl sm:rounded-2xl font-bold text-white transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none overflow-hidden shadow-xl"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600" />
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="relative">
-                  {currentStep === questions.length - 1
-                    ? "Complete"
-                    : "Continue"}
+                <span className="relative text-sm sm:text-base">
+                  {currentStep === questions.length - 1 ? "Submit" : "Next"}
                 </span>
-                {currentStep === questions.length - 1 ? (
-                  <CheckCircle className="relative w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
-                ) : (
-                  <ArrowRight className="relative w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
-                )}
+                <ArrowRight className="relative w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </div>
         </div>
-
-        {currentStep === questions.length - 1 && canProceed && (
-          <div className="mt-4 sm:mt-6 text-center animate-bounce px-4">
-            <p className="text-xs sm:text-sm font-medium text-blue-600">
-              🎉 Almost there! Click Complete to finish
-            </p>
-          </div>
-        )}
       </div>
-
-      <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
-        }
-      `}</style>
     </div>
   );
 }

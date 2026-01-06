@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mail, Lock, User, Phone } from "lucide-react";
+import { Mail, Lock, User, Phone, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import { API_BASE_URL } from "../../config/apiConfig";
@@ -11,7 +11,7 @@ export default function SignUpPage() {
     phone: "",
     password: ""
   });
-
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate(); // initialize navigate
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,34 +29,34 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      // const res = await fetch(`${API_BASE_URL}/users/register`, {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json"
-      //   },
-      //   body: JSON.stringify({
-      //     fullName: formData.name,
-      //     email: formData.email,
-      //     phoneNumber: formData.phone,
-      //     password: formData.password,
-      //     startupName: "My Startup", // default or you can add input field
-      //     industry: "Tech", // default or input field
-      //     stage: "Idea", // default or input field
-      //     country: "Nigeria" // default or input field
-      //   })
-      // });
+      const res = await fetch(`${API_BASE_URL}/users/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          fullName: formData.name,
+          email: formData.email,
+          phoneNumber: formData.phone,
+          password: formData.password,
+          startupName: "My Startup", // default or you can add input field
+          industry: "Tech", // default or input field
+          stage: "Idea", // default or input field
+          country: "Nigeria" // default or input field
+        })
+      });
 
-      // const data = await res.json();
+      const data = await res.json();
 
-      // if (!res.ok) {
-      //   throw new Error(data.message || "Sign up failed");
-      // }
+      if (!res.ok) {
+        throw new Error(data.message || "Sign up failed");
+      }
 
-      // const { token, user } = data;
+      const { token, user } = data;
 
-      // // store token in localStorage/sessionStorage
-      // localStorage.setItem("token", token);
-      // localStorage.setItem("user", JSON.stringify(user));
+      // store token in localStorage/sessionStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
 
       // redirect to onboarding or dashboard
       navigate("/onboarding");
@@ -209,15 +209,28 @@ export default function SignUpPage() {
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="••••••••"
                   required
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
 

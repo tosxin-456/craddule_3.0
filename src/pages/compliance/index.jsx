@@ -2,20 +2,23 @@ import {
   Shield,
   FilePlus,
   CheckCircle,
-  Clock,
-  X,
   AlertCircle,
+  Loader2,
   FileText,
   Building2,
   Receipt,
-  Loader2
+  X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function Compliance() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [complianceItems, setComplianceItems] = useState([
+  const [complianceItems, setComplianceItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const REQUIRED_ITEMS = [
     {
       id: "cac",
       title: "Business Registration (CAC)",
@@ -43,112 +46,149 @@ export default function Compliance() {
       canFill: true,
       icon: <Receipt className="w-5 h-5" />
     }
-  ]);
+  ];
+
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    fetchComplianceItems();
+  }, []);
+
+  const fetchComplianceItems = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/compliance`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setComplianceItems(data.items);
+      }
+    } catch (err) {
+      console.error("Error fetching compliance items:", err);
+    }
+    setLoading(false);
+  };
+
+  // Add missing items to the state
+  const addMissingItems = (items) => {
+    setComplianceItems((prev) => [...prev, ...items]);
+  };
+
+  const handleSubmitDocument = async (itemId, formData) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/compliance/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ itemId, formData })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setComplianceItems((prev) =>
+          prev.map((item) =>
+            item.id === itemId ? { ...item, ...data.item } : item
+          )
+        );
+        setSelectedItem(null);
+      } else {
+        alert(data.message || "Error submitting document");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to submit document");
+    }
+  };
+
+  const handleGrantAuthorization = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/compliance/authorize`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || "Authorization granted");
+        setShowAuthModal(false);
+        fetchComplianceItems();
+      } else {
+        alert("Failed to grant authorization");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error granting authorization");
+    }
+  };
 
   const completedCount = complianceItems.filter(
     (i) => i.status === "Completed"
   ).length;
 
-  const handleSubmitDocument = (itemId, formData) => {
-    setComplianceItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? { ...item, status: "Pending", submittedData: formData }
-          : item
-      )
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 p-6">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header with Image */}
-        <header className="bg-white rounded-2xl shadow-lg border border-blue-100 overflow-hidden">
-          <div className="relative h-32 bg-gradient-to-r from-blue-600 to-blue-400">
-            <img
-              src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1200&h=300&fit=crop"
-              alt="Compliance documents"
-              className="w-full h-full object-cover opacity-20"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 to-blue-400/90"></div>
-          </div>
-          <div className="p-6 -mt-16 relative">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="inline-flex items-center gap-2 bg-white rounded-xl px-4 py-2 shadow-md mb-3">
-                  <Shield className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-600">
-                    Compliance Portal
-                  </span>
-                </div>
-                <h1 className="text-3xl font-bold text-slate-900">
-                  Regulatory Compliance
-                </h1>
-                <p className="text-slate-600 mt-2">
-                  Complete required documents directly on Craddule. We handle
-                  processing and verification.
-                </p>
+        {/* Header */}
+        <header className="bg-white rounded-2xl shadow-lg border border-blue-100 overflow-hidden p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-slate-900">
+                Regulatory Compliance
+              </h1>
+              <p className="text-slate-600 mt-2">
+                Complete your required documents. Once submitted, we process and
+                authorize them.
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl px-6 py-4 text-center min-w-[140px] shadow-lg">
+              <div className="text-3xl font-bold text-white">
+                {completedCount}/{complianceItems.length}
               </div>
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl px-6 py-4 text-center min-w-[140px] shadow-lg">
-                <div className="text-3xl font-bold text-white">
-                  {completedCount}/{complianceItems.length}
-                </div>
-                <div className="text-xs text-blue-100 mt-1 font-medium">
-                  Completed
-                </div>
+              <div className="text-xs text-blue-100 mt-1 font-medium">
+                Completed
               </div>
             </div>
           </div>
         </header>
 
-        {/* Progress Alert */}
-        {completedCount < complianceItems.length && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm">
-            <div className="bg-blue-100 rounded-xl p-2">
-              <AlertCircle className="w-6 h-6 text-blue-600 flex-shrink-0" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 text-lg">
-                Action Required
-              </h3>
-              <p className="text-sm text-blue-700 mt-1">
-                You have {complianceItems.length - completedCount} pending
-                compliance{" "}
-                {complianceItems.length - completedCount === 1
-                  ? "document"
-                  : "documents"}
-                . Complete them to ensure full regulatory compliance.
-              </p>
-            </div>
+        {/* Missing Items */}
+        {REQUIRED_ITEMS.filter(
+          (req) => !complianceItems.some((i) => i.id === req.id)
+        ).length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-300 rounded-2xl p-5 flex items-center justify-between">
+            <span className="text-yellow-700 font-semibold">
+              Some required compliance items are missing!
+            </span>
+            <button
+              onClick={() =>
+                addMissingItems(
+                  REQUIRED_ITEMS.filter(
+                    (req) => !complianceItems.some((i) => i.id === req.id)
+                  )
+                )
+              }
+              className="px-4 py-2 rounded-lg bg-yellow-600 text-white hover:bg-yellow-700 transition"
+            >
+              Add Missing Items
+            </button>
           </div>
         )}
 
         {/* Compliance Items */}
-        <div className="space-y-4">
-          {complianceItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white border border-blue-100 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-blue-200"
-            >
-              <div className="flex items-start gap-0">
-                {/* Side Image */}
-                <div className="w-48 h-full relative hidden md:block">
-                  <img
-                    src={
-                      item.id === "cac"
-                        ? "https://images.unsplash.com/photo-1554224311-beee4ece3df0?w=400&h=300&fit=crop"
-                        : item.id === "license"
-                        ? "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=300&fit=crop"
-                        : "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=400&h=300&fit=crop"
-                    }
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white"></div>
-                </div>
-
-                <div className="flex items-start gap-4 p-5 flex-1">
-                  {/* Icon */}
+        {loading ? (
+          <div className="text-center text-blue-600 py-20">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+            <p className="mt-2">Loading compliance items...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {complianceItems.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white border border-blue-100 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-blue-200"
+              >
+                <div className="flex items-center gap-4 p-5 flex-1">
                   <div
                     className={`rounded-xl p-3 shadow-sm ${
                       item.status === "Completed"
@@ -158,10 +198,9 @@ export default function Compliance() {
                         : "bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600"
                     }`}
                   >
-                    {item.icon}
+                    {item.icon || <FileText className="w-5 h-5" />}
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -171,25 +210,10 @@ export default function Compliance() {
                         <p className="text-sm text-slate-600 mt-1">
                           {item.description}
                         </p>
-                        <div className="flex items-center gap-4 mt-3">
-                          <span className="text-sm font-medium text-slate-700">
-                            Cost:{" "}
-                            <span className="text-blue-600 font-semibold">
-                              {item.cost}
-                            </span>
-                          </span>
-                          {item.completedDate && (
-                            <span className="text-sm text-slate-500">
-                              Completed {item.completedDate}
-                            </span>
-                          )}
-                        </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-3">
                         <StatusBadge status={item.status} />
-
                         {item.canFill && item.status === "Not Started" && (
                           <button
                             onClick={() => setSelectedItem(item)}
@@ -204,47 +228,35 @@ export default function Compliance() {
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {/* Authorization Block */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl overflow-hidden shadow-xl">
-          <div className="relative">
-            <img
-              src="https://images.unsplash.com/photo-1521791136064-7986c2920216?w=1200&h=300&fit=crop"
-              alt="Team collaboration"
-              className="w-full h-48 object-cover opacity-20"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/95 to-blue-500/95"></div>
-            <div className="absolute inset-0 flex items-center p-6">
-              <div className="flex items-start gap-4 w-full">
-                <div className="bg-white rounded-xl p-3 shadow-lg">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-xl text-white">
-                    Processing Authorization
-                  </h3>
-                  <p className="text-blue-50 mt-2 text-sm leading-relaxed">
-                    Grant Craddule permission to submit documents on your behalf
-                    to relevant regulatory bodies. This streamlines the
-                    compliance process and saves you time.
-                  </p>
-                  <button
-                    onClick={() => setShowAuthModal(true)}
-                    className="mt-4 px-6 py-3 rounded-xl bg-white text-blue-600 hover:bg-blue-50 transition-all font-semibold text-sm shadow-lg hover:shadow-xl"
-                  >
-                    Grant Authorization
-                  </button>
-                </div>
-              </div>
+        {/* Authorization */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl overflow-hidden shadow-xl p-6">
+          <div className="flex items-start gap-4 w-full">
+            <div className="bg-white rounded-xl p-3 shadow-lg">
+              <FileText className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-xl text-white">
+                Processing Authorization
+              </h3>
+              <p className="text-blue-50 mt-2 text-sm leading-relaxed">
+                Grant Craddule permission to submit documents on your behalf.
+              </p>
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="mt-4 px-6 py-3 rounded-xl bg-white text-blue-600 hover:bg-blue-50 transition-all font-semibold text-sm shadow-lg hover:shadow-xl"
+              >
+                Grant Authorization
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Document Form Modal */}
+      {/* Document Modal */}
       {selectedItem && (
         <DocumentModal
           item={selectedItem}
@@ -255,7 +267,10 @@ export default function Compliance() {
 
       {/* Authorization Modal */}
       {showAuthModal && (
-        <AuthorizationModal onClose={() => setShowAuthModal(false)} />
+        <AuthorizationModal
+          onClose={() => setShowAuthModal(false)}
+          onGrant={handleGrantAuthorization}
+        />
       )}
     </div>
   );
@@ -282,9 +297,7 @@ function StatusBadge({ status }) {
       border: "border-slate-200"
     }
   };
-
   const style = config[status];
-
   return (
     <span
       className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${style.bg} ${style.text} ${style.border}`}
@@ -295,6 +308,7 @@ function StatusBadge({ status }) {
   );
 }
 
+// Document Modal
 function DocumentModal({ item, onClose, onSubmit }) {
   const [formData, setFormData] = useState({});
 
@@ -393,29 +407,23 @@ function DocumentModal({ item, onClose, onSubmit }) {
 
   const handleSubmit = () => {
     const fields = getFormFields();
-    const requiredFields = fields.filter((f) => f.required);
-    const missingFields = requiredFields.filter(
-      (f) => !formData[f.name] || formData[f.name].trim() === ""
+    const missingFields = fields.filter(
+      (f) => f.required && (!formData[f.name] || formData[f.name].trim() === "")
     );
-
     if (missingFields.length > 0) {
       alert(
-        `Please fill in all required fields: ${missingFields
+        `Please fill all required fields: ${missingFields
           .map((f) => f.label)
           .join(", ")}`
       );
       return;
     }
-
     onSubmit(item.id, formData);
-    alert("Document submitted successfully! Status changed to Pending.");
-    onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">{item.title}</h2>
@@ -429,97 +437,79 @@ function DocumentModal({ item, onClose, onSubmit }) {
           </button>
         </div>
 
-        {/* Form */}
-        <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
-          <div className="p-6 space-y-4">
-            {getFormFields().map((field) => (
-              <div key={field.name}>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {field.label}
-                  {field.required && (
-                    <span className="text-red-500 ml-1">*</span>
-                  )}
-                </label>
-                {field.type === "textarea" ? (
-                  <textarea
-                    rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={formData[field.name] || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, [field.name]: e.target.value })
-                    }
-                  />
-                ) : field.type === "select" ? (
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={formData[field.name] || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, [field.name]: e.target.value })
-                    }
-                  >
-                    <option value="">Select {field.label}</option>
-                    {field.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={field.type}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={formData[field.name] || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, [field.name]: e.target.value })
-                    }
-                  />
-                )}
-              </div>
-            ))}
-
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mt-6">
-              <p className="text-sm text-slate-700 font-medium">
-                <strong className="text-blue-700">Processing Fee:</strong>{" "}
-                {item.cost}
-              </p>
-              <p className="text-xs text-slate-600 mt-1">
-                This fee will be charged upon submission and covers government
-                processing costs.
-              </p>
+        <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-6 space-y-4">
+          {getFormFields().map((field) => (
+            <div key={field.name}>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                {field.label}
+                {field.required && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              {field.type === "textarea" ? (
+                <textarea
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  value={formData[field.name] || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, [field.name]: e.target.value })
+                  }
+                />
+              ) : field.type === "select" ? (
+                <select
+                  className="w-full px-3 py-2 border rounded-lg"
+                  value={formData[field.name] || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, [field.name]: e.target.value })
+                  }
+                >
+                  <option value="">Select {field.label}</option>
+                  {field.options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  value={formData[field.name] || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, [field.name]: e.target.value })
+                  }
+                />
+              )}
             </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 transition-colors font-medium text-sm"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg font-medium text-sm"
-            >
-              Submit Document
-            </button>
-          </div>
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600"
+          >
+            Submit Document
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function AuthorizationModal({ onClose }) {
+// Authorization Modal
+function AuthorizationModal({ onClose, onGrant }) {
   const [agreed, setAgreed] = useState(false);
-
   const handleGrant = () => {
     if (!agreed) {
       alert("Please agree to the terms before proceeding");
       return;
     }
-    alert("Authorization granted successfully!");
-    onClose();
+    onGrant();
   };
 
   return (
@@ -530,24 +520,9 @@ function AuthorizationModal({ onClose }) {
             Grant Processing Authorization
           </h2>
           <p className="text-slate-600 mt-2">
-            By granting authorization, you allow Craddule to:
+            By granting authorization, you allow Craddule to submit compliance
+            documents and communicate with regulatory bodies on your behalf.
           </p>
-
-          <ul className="space-y-2 mt-4 text-sm text-slate-700">
-            <li className="flex items-start gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              Submit compliance documents on your behalf
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              Communicate with regulatory bodies for status updates
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              Receive and forward official documentation to you
-            </li>
-          </ul>
-
           <div className="bg-slate-50 rounded-lg p-4 mt-4">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
@@ -564,18 +539,17 @@ function AuthorizationModal({ onClose }) {
             </label>
           </div>
         </div>
-
         <div className="flex items-center justify-end gap-3 p-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 transition-colors font-medium text-sm"
+            className="px-5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50"
           >
             Cancel
           </button>
           <button
             onClick={handleGrant}
             disabled={!agreed}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Grant Authorization
           </button>
