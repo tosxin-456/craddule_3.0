@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Shield,
@@ -17,22 +17,41 @@ import {
   LogOut
 } from "lucide-react";
 import logo from "../assets/logo.png";
+import { API_BASE_URL } from "../config/apiConfig";
 
 export default function DashboardLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+const [sidebarOpen, setSidebarOpen] = useState(false);
+const [tickets, setTickets] = useState([]);
+const [ticketLoading, setTicketLoading] = useState(true);
 
-  const navigate = useNavigate();
+const navigate = useNavigate();
+const token = localStorage.getItem("token");
 
-  const handleLogout = () => {
-    // Clear auth data
-    localStorage.removeItem("token"); // or "user", "auth", etc.
-    sessionStorage.clear();
-
-    // Optional: call backend logout endpoint
-    // await fetch("/api/logout", { method: "POST", credentials: "include" });
-
-    navigate("/login");
+// Fetch tickets for badge
+useEffect(() => {
+  const fetchTickets = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tickets/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setTickets(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTicketLoading(false);
+    }
   };
+
+  fetchTickets();
+}, [token]);
+
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  sessionStorage.clear();
+  navigate("/login");
+};
+
 
 
   return (
@@ -143,7 +162,11 @@ export default function DashboardLayout() {
                 label="Messages & Tickets"
                 icon={<MessageSquare className="w-5 h-5" />}
                 onNavigate={() => setSidebarOpen(false)}
-                badge="1"
+                badge={
+                  ticketLoading
+                    ? "..."
+                    : tickets.filter((t) => t.status === "Under Review").length
+                }
               />
               <SidebarLink
                 to="/dashboard/profile"

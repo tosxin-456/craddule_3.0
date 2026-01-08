@@ -39,25 +39,70 @@ export default function DocumentsVault() {
   ];
 
   const documentTypeConfig = {
+    CAC1: {
+      icon: <Building2 className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&h=300&fit=crop"
+    },
     "CAC Certificate": {
       icon: <Building2 className="w-5 h-5" />,
       image:
         "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&h=300&fit=crop"
     },
-    "Industry License": {
-      icon: <Shield className="w-5 h-5" />,
+    TIN: {
+      icon: <Receipt className="w-5 h-5" />,
       image:
-        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop"
+        "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=400&h=300&fit=crop"
     },
     "Tax Identification Number": {
       icon: <Receipt className="w-5 h-5" />,
       image:
         "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=400&h=300&fit=crop"
     },
+    BRC: {
+      icon: <Shield className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop"
+    },
+    "Industry License": {
+      icon: <Shield className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop"
+    },
     "Tax Clearance Certificate": {
       icon: <FileText className="w-5 h-5" />,
       image:
         "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=300&fit=crop"
+    },
+    "Business Permit": {
+      icon: <Shield className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=300&fit=crop"
+    },
+    "Environmental Clearance": {
+      icon: <FileText className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?w=400&h=300&fit=crop"
+    },
+    "Fire Safety Certificate": {
+      icon: <Shield className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1551836022-deb4988cc6c0?w=400&h=300&fit=crop"
+    },
+    "Health Permit": {
+      icon: <FileText className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&h=300&fit=crop"
+    },
+    "Import License": {
+      icon: <Receipt className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=400&h=300&fit=crop"
+    },
+    "Export License": {
+      icon: <Receipt className="w-5 h-5" />,
+      image:
+        "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&h=300&fit=crop"
     },
     Other: {
       icon: <FileText className="w-5 h-5" />,
@@ -83,6 +128,7 @@ export default function DocumentsVault() {
       if (!response.ok) throw new Error("Failed to fetch documents");
 
       const data = await response.json();
+      console.log(data.documents);
       setDocuments(data.documents); // { success: true, documents }
     } catch (error) {
       console.error("Error fetching documents:", error);
@@ -154,7 +200,13 @@ export default function DocumentsVault() {
   };
 
   const calculateStatus = (expiry) => {
-    if (!expiry || expiry === "None" || expiry === "Perpetual") return "Active";
+    if (
+      !expiry ||
+      expiry === "None" ||
+      expiry === "Perpetual" ||
+      expiry === "0000-00-00"
+    )
+      return "Active";
     const expiryDate = new Date(expiry);
     const today = new Date();
     const daysUntilExpiry = Math.ceil(
@@ -167,8 +219,7 @@ export default function DocumentsVault() {
   };
 
   const getMissingDocuments = () => {
-    const existingTypes = documents.map((doc) => doc.name);
-    return requiredDocuments.filter((doc) => !existingTypes.includes(doc));
+    return documents.filter((doc) => !doc.fileUrl).map((doc) => doc.fullName);
   };
 
   const getStatusBadge = (status) => {
@@ -275,7 +326,9 @@ export default function DocumentsVault() {
         )}
 
         {/* Expiry Alert */}
-        {documents.some((d) => d.status === "Expiring Soon") && (
+        {documents.some(
+          (d) => calculateStatus(d.expiryDate) === "Expiring Soon"
+        ) && (
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm">
             <div className="bg-amber-100 rounded-xl p-2">
               <Clock className="w-6 h-6 text-amber-600 flex-shrink-0" />
@@ -285,7 +338,11 @@ export default function DocumentsVault() {
                 Documents Expiring Soon
               </h3>
               <p className="text-sm text-amber-700 mt-1">
-                {documents.filter((d) => d.status === "Expiring Soon").length}{" "}
+                {
+                  documents.filter(
+                    (d) => calculateStatus(d.expiryDate) === "Expiring Soon"
+                  ).length
+                }{" "}
                 document(s) will expire soon. Renew them to maintain compliance.
               </p>
             </div>

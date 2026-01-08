@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   Briefcase,
@@ -7,35 +7,64 @@ import {
   TrendingUp,
   Calendar
 } from "lucide-react";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function FounderProfile() {
   const [isEditingOverview, setIsEditingOverview] = useState(false);
+  const [founder, setFounder] = useState(null);
+  const [editedFounder, setEditedFounder] = useState({});
+  const [phaseData, setPhaseData] = useState([]);
+  const [nextAction, setNextAction] = useState(null);
+  const [stats, setStats] = useState({});
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [founder, setFounder] = useState({
-    fullName: "Founder Name",
-    email: "founder@email.com",
-    startupName: "Startup Name",
-    industry: "Industry",
-    stage: "Idea / MVP / Early Revenue",
-    country: "Nigeria"
-  });
+  // Fetch user profile
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_BASE_URL}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setFounder(data);
+        setEditedFounder(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
 
-  const [phaseData] = useState({
-    complianceStatus: "In Progress",
-    strategyStatus: "Locked",
-    fundingStatus: "Locked"
-  });
+    fetchProfile();
+  }, []);
 
-  const [editedFounder, setEditedFounder] = useState(founder);
+  // Fetch progress for phases
+  useEffect(() => {
+    async function fetchProgress() {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_BASE_URL}/progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setPhaseData(data.phases);
+        setNextAction(data.nextAction);
+        setStats(data.stats);
+        setRecentActivity(data.recentActivity);
+        console.log(recentActivity);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProgress();
+  }, []);
 
   const handleEdit = () => {
     setEditedFounder(founder);
     setIsEditingOverview(true);
-  };
-
-  const handleSave = () => {
-    setFounder(editedFounder);
-    setIsEditingOverview(false);
   };
 
   const handleCancel = () => {
@@ -45,6 +74,29 @@ export default function FounderProfile() {
 
   const handleChange = (field, value) => {
     setEditedFounder((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(editedFounder)
+      });
+
+      if (!res.ok) throw new Error("Failed to update profile");
+
+      const data = await res.json();
+      setFounder(data.user);
+      setEditedFounder(data.user);
+      setIsEditingOverview(false);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -57,6 +109,10 @@ export default function FounderProfile() {
     };
     return colors[status] || "bg-gray-100 text-gray-700";
   };
+
+  if (loading || !founder) {
+    return <div className="p-4 text-center">Loading profile...</div>;
+  }
 
   const currentFounder = isEditingOverview ? editedFounder : founder;
 
@@ -77,7 +133,7 @@ export default function FounderProfile() {
                 {isEditingOverview ? (
                   <input
                     type="text"
-                    value={editedFounder.fullName}
+                    value={editedFounder.fullName || ""}
                     onChange={(e) => handleChange("fullName", e.target.value)}
                     className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-1 border-b-2 border-blue-500 focus:outline-none bg-transparent w-full"
                   />
@@ -89,7 +145,7 @@ export default function FounderProfile() {
                 {isEditingOverview ? (
                   <input
                     type="email"
-                    value={editedFounder.email}
+                    value={editedFounder.email || ""}
                     onChange={(e) => handleChange("email", e.target.value)}
                     className="text-sm sm:text-base text-slate-600 mb-3 border-b-2 border-blue-500 focus:outline-none bg-transparent w-full"
                   />
@@ -103,7 +159,7 @@ export default function FounderProfile() {
                     <>
                       <input
                         type="text"
-                        value={editedFounder.country}
+                        value={editedFounder.country || ""}
                         onChange={(e) =>
                           handleChange("country", e.target.value)
                         }
@@ -111,7 +167,7 @@ export default function FounderProfile() {
                       />
                       <input
                         type="text"
-                        value={editedFounder.stage}
+                        value={editedFounder.stage || ""}
                         onChange={(e) => handleChange("stage", e.target.value)}
                         className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium border-2 border-blue-500 focus:outline-none"
                       />
@@ -165,129 +221,67 @@ export default function FounderProfile() {
         >
           <Info
             label="Startup Name"
-            value={currentFounder.startupName}
+            value={currentFounder.startupName || ""}
             isEditing={isEditingOverview}
             onChange={(val) => handleChange("startupName", val)}
           />
           <Info
             label="Industry"
-            value={currentFounder.industry}
+            value={currentFounder.industry || ""}
             isEditing={isEditingOverview}
             onChange={(val) => handleChange("industry", val)}
           />
           <Info
             label="Business Stage"
-            value={currentFounder.stage}
+            value={currentFounder.stage || ""}
             isEditing={isEditingOverview}
             onChange={(val) => handleChange("stage", val)}
           />
           <Info
             label="Country of Operation"
-            value={currentFounder.country}
+            value={currentFounder.country || ""}
             isEditing={isEditingOverview}
             onChange={(val) => handleChange("country", val)}
           />
         </Section>
 
-        {/* Journey Progress */}
+        {/* Phases */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <PhaseCard
-            phase="1"
-            title="Regulatory Compliance"
-            status={phaseData.complianceStatus}
-            icon={ShieldCheck}
-            gradient="from-emerald-500 to-teal-600"
-            progress={
-              phaseData.complianceStatus === "Completed"
-                ? 100
-                : phaseData.complianceStatus === "In Progress"
-                ? 65
-                : 0
-            }
-          />
-          <PhaseCard
-            phase="2"
-            title="Strategy & Advisory"
-            status={phaseData.strategyStatus}
-            icon={FileText}
-            gradient="from-blue-500 to-cyan-600"
-            progress={
-              phaseData.strategyStatus === "Completed"
-                ? 100
-                : phaseData.strategyStatus === "In Progress"
-                ? 50
-                : 0
-            }
-          />
-          <PhaseCard
-            phase="3"
-            title="Funding Pathway"
-            status={phaseData.fundingStatus}
-            icon={TrendingUp}
-            gradient="from-amber-500 to-orange-600"
-            progress={
-              phaseData.fundingStatus === "Completed"
-                ? 100
-                : phaseData.fundingStatus === "In Progress"
-                ? 40
-                : phaseData.fundingStatus === "Eligible"
-                ? 20
-                : 0
-            }
-          />
+          {phaseData.map((phase, index) => (
+            <PhaseCard
+              key={index}
+              phase={index + 1}
+              title={phase.title}
+              status={phase.status}
+              gradient={
+                phase.title.includes("Compliance")
+                  ? "from-emerald-500 to-teal-600"
+                  : phase.title.includes("Strategy")
+                  ? "from-blue-500 to-cyan-600"
+                  : "from-amber-500 to-orange-600"
+              }
+              progress={phase.progress}
+              icon={
+                phase.title.includes("Compliance")
+                  ? ShieldCheck
+                  : phase.title.includes("Strategy")
+                  ? FileText
+                  : TrendingUp
+              }
+            />
+          ))}
         </div>
 
-        {/* Phase 1 Details */}
-        <Section
-          title="Phase 1 – Regulatory Compliance"
-          icon={ShieldCheck}
-          gradient="from-emerald-500 to-teal-600"
-        >
-          <Info
-            label="Compliance Status"
-            value={phaseData.complianceStatus}
-            statusColor={getStatusColor(phaseData.complianceStatus)}
-          />
-          <Info label="Registered Documents" value="View Documents" isLink />
-          <Info label="Next Renewal Date" value="Not scheduled" subtle />
-          <Info label="Regulatory Notes" value="Pending submissions" />
-        </Section>
-
-        {/* Phase 2 Details */}
-        <Section
-          title="Phase 2 – Strategy & Advisory"
-          icon={FileText}
-          gradient="from-blue-500 to-cyan-600"
-        >
-          <Info
-            label="AI Walkthrough"
-            value="Completed"
-            statusColor={getStatusColor("Completed")}
-          />
-          <Info label="Executive Summary" value="Generated" />
-          <Info
-            label="Strategy Session Status"
-            value={phaseData.strategyStatus}
-            statusColor={getStatusColor(phaseData.strategyStatus)}
-          />
-          <Info label="Feedback Report" value="Not available" subtle />
-        </Section>
-
-        {/* Phase 3 Details */}
-        <Section
-          title="Phase 3 – Funding Pathway"
-          icon={TrendingUp}
-          gradient="from-amber-500 to-orange-600"
-        >
-          <Info
-            label="Funding Readiness"
-            value={phaseData.fundingStatus}
-            statusColor={getStatusColor(phaseData.fundingStatus)}
-          />
-          <Info label="Target Funding Type" value="Angel / Pre-Seed" />
-          <Info label="Craddule Advocacy" value="Not Started" />
-          <Info label="Legal Agreement" value="Pending review" subtle />
-        </Section>
+        {/* Next Action */}
+        {nextAction && (
+          <Section
+            title="Next Required Action"
+            icon={FileText}
+            gradient="from-indigo-500 to-purple-600"
+          >
+            <Info label={nextAction.title} value={nextAction.description} />
+          </Section>
+        )}
 
         {/* Activity Timeline */}
         <Section
@@ -297,22 +291,25 @@ export default function FounderProfile() {
         >
           <div className="col-span-full">
             <div className="space-y-4">
-              <TimelineItem
-                date="Dec 15, 2024"
-                title="Founder profile created"
-                description="Welcome to Craddule!"
-              />
-              <TimelineItem
-                date="Dec 16, 2024"
-                title="Compliance onboarding started"
-                description="Phase 1 initiated"
-              />
-              <TimelineItem
-                date="Dec 20, 2024"
-                title="AI walkthrough completed"
-                description="Strategy analysis in progress"
-                isLast
-              />
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity, index) => (
+                  <TimelineItem
+                    key={index}
+                    date={new Date(activity.time).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric"
+                    })}
+                    title={activity.text}
+                    description={activity.status || ""}
+                    isLast={index === recentActivity.length - 1}
+                  />
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 italic">
+                  No recent activity
+                </p>
+              )}
             </div>
           </div>
         </Section>

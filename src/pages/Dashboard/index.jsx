@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   Lock,
@@ -10,8 +11,63 @@ import {
   Rocket,
   Shield
 } from "lucide-react";
+import { API_BASE_URL } from "../../config/apiConfig";
 
 export default function DashboardHome() {
+  const [data, setData] = useState(null);
+
+  const [tickets, setTickets] = useState([]);
+  const [ticketLoading, setTicketLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTickets();
+    fetchProgress();
+  }, []);
+
+  const token = localStorage.getItem("token");
+
+  const fetchTickets = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tickets/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setTickets(data);
+      setTicketLoading(false);
+    } catch (err) {
+      console.error(err);
+      setTicketLoading(false);
+    }
+  };
+
+  const fetchProgress = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/progress`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (!data) return <p className="p-8">Loading...</p>;
+
+  const { phases, nextAction, stats, recentActivity } = data;
+
+  const phaseIcons = {
+    "Phase 1: Compliance": <Shield className="w-6 h-6" />,
+    "Phase 2: Strategy": <TrendingUp className="w-6 h-6" />,
+    "Phase 3: Funding": <Rocket className="w-6 h-6" />
+  };
+
+  const phaseColors = {
+    "Phase 1: Compliance": "blue",
+    "Phase 2: Strategy": "indigo",
+    "Phase 3: Funding": "blue"
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Hero Section */}
@@ -43,68 +99,59 @@ export default function DashboardHome() {
             Your Progress
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <PhaseCard
-              icon={<Shield className="w-6 h-6" />}
-              title="Phase 1: Compliance"
-              progress={70}
-              status="In Progress"
-              description="Legal documentation and registration"
-              color="blue"
-              isActive={true}
-            />
-            <PhaseCard
-              icon={<TrendingUp className="w-6 h-6" />}
-              title="Phase 2: Strategy"
-              progress={30}
-              status="Locked"
-              description="Business model and market analysis"
-              color="indigo"
-              isActive={false}
-            />
-            <PhaseCard
-              icon={<Rocket className="w-6 h-6" />}
-              title="Phase 3: Funding"
-              progress={0}
-              status="Locked"
-              description="Investment readiness and pitch prep"
-              color="blue"
-              isActive={false}
-            />
+            {phases.map((phase) => (
+              <PhaseCard
+                key={phase.title}
+                icon={phaseIcons[phase.title]}
+                title={phase.title}
+                progress={phase.progress}
+                status={phase.status}
+                description={
+                  phase.title === "Phase 1: Regulatory Compliance"
+                    ? "Legal documentation and registration"
+                    : phase.title === "Phase 2: Strategy"
+                    ? "Business model and market analysis"
+                    : "Investment readiness and pitch prep"
+                }
+                color={phaseColors[phase.title]}
+                isActive={phase.status !== "Locked"}
+              />
+            ))}
           </div>
         </section>
 
-        {/* Next Action - Enhanced */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-lg">
-          <div className="absolute right-0 top-0 opacity-10">
-            <img
-              src="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=600&h=400&fit=crop"
-              alt="action"
-              className="w-96 h-full object-cover"
-            />
-          </div>
-          <div className="relative p-8">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                <AlertCircle className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-white mb-2">
-                  Next Required Action
-                </h3>
-                <p className="text-blue-100 mb-6 max-w-xl">
-                  Upload your CAC certificate to complete your compliance
-                  documentation. This is the final document needed to unlock
-                  Phase 2.
-                </p>
-                <button className="group px-6 py-3 bg-white text-blue-700 rounded-xl font-medium hover:bg-blue-50 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">
-                  <Upload className="w-4 h-4" />
-                  Upload Document
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
+        {/* Next Action */}
+        {nextAction && (
+          <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-lg">
+            <div className="absolute right-0 top-0 opacity-10">
+              <img
+                src="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=600&h=400&fit=crop"
+                alt="action"
+                className="w-96 h-full object-cover"
+              />
+            </div>
+            <div className="relative p-8">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <AlertCircle className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-white mb-2">
+                    Next Required Action
+                  </h3>
+                  <p className="text-blue-100 mb-6 max-w-xl">
+                    {nextAction.description}
+                  </p>
+                  <button className="group px-6 py-3 bg-white text-blue-700 rounded-xl font-medium hover:bg-blue-50 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">
+                    <Upload className="w-4 h-4" />
+                    Upload Document
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Stats Grid */}
         <section>
@@ -115,25 +162,21 @@ export default function DashboardHome() {
             <InfoCard
               icon={<FileText className="w-5 h-5 text-blue-600" />}
               title="Documents"
-              value="4 / 7"
-              subtitle="Completed"
-              progress={57}
-              image="https://images.unsplash.com/photo-1568667256549-094345857637?w=400&h=300&fit=crop"
+              value={`${stats.documents}`}
+              subtitle="Total documents to uploaded"
             />
             <InfoCard
               icon={<AlertCircle className="w-5 h-5 text-amber-600" />}
               title="Open Tickets"
-              value="1"
-              subtitle="Active support request"
-              image="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=400&h=300&fit=crop"
+              value={ticketLoading ? "..." : tickets.length}
+              subtitle="Your open support requests"
             />
+
             <InfoCard
               icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
               title="Milestones"
-              value="3 / 12"
-              subtitle="Completed"
-              progress={25}
-              image="https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop"
+              value={`${stats.milestones}`}
+              subtitle="Compliance completed"
             />
           </div>
         </section>
@@ -144,21 +187,14 @@ export default function DashboardHome() {
             Recent Activity
           </h2>
           <div className="space-y-4">
-            <ActivityItem
-              text="Certificate of Incorporation uploaded"
-              time="2 hours ago"
-              status="completed"
-            />
-            <ActivityItem
-              text="Business Plan reviewed"
-              time="1 day ago"
-              status="completed"
-            />
-            <ActivityItem
-              text="Support ticket opened for CAC registration"
-              time="2 days ago"
-              status="pending"
-            />
+            {recentActivity.map((item, idx) => (
+              <ActivityItem
+                key={idx}
+                text={item.text}
+                time={new Date(item.time).toLocaleString()}
+                status={item.status}
+              />
+            ))}
           </div>
         </section>
       </div>
