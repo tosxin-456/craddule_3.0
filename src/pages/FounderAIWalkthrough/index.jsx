@@ -36,7 +36,6 @@ export default function FounderAIWalkthrough() {
   const [finalIdea, setFinalIdea] = useState("");
   const [businessModel, setBusinessModel] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
-
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -174,7 +173,7 @@ export default function FounderAIWalkthrough() {
             sendMessage={sendMessage}
             handleKeyPress={handleKeyPress}
             onGenerate={generateBusinessModel}
-            canGenerate={messages.filter((m) => m.role === "user").length >= 2}
+            canGenerate={messages.filter((m) => m.role === "user").length >= 3}
             isTyping={isTyping}
           />
         )}
@@ -219,9 +218,7 @@ function ChatStage({
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">
-              Abby
-            </h1>
+            <h1 className="text-xl font-bold text-slate-900">Abby</h1>
             <p className="text-sm text-slate-500 mt-0.5">
               Let's refine your business idea together
             </p>
@@ -360,7 +357,6 @@ function LoadingStep({ text, delay }) {
     </div>
   );
 }
-
 
 function ResultStage({ businessModel, onViewDocument }) {
   if (!businessModel) return null;
@@ -540,6 +536,7 @@ function DocumentStage({ businessModel, onStartOver }) {
   const handleExport = () => {
     alert("PDF export functionality would be implemented here");
   };
+  const navigate = useNavigate();
 
   return (
     <div className="p-8 md:p-12 max-h-[85vh] overflow-y-auto">
@@ -657,7 +654,10 @@ function DocumentStage({ businessModel, onStartOver }) {
           <ArrowRight className="w-5 h-5 rotate-180" />
           Start Over
         </button>
-        <button className="flex-1 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 text-white rounded-xl py-4 px-6 font-semibold hover:from-indigo-700 hover:to-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="flex-1 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-600 text-white rounded-xl py-4 px-6 font-semibold hover:from-indigo-700 hover:to-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+        >
           Continue to Dashboard
           <ArrowRight className="w-5 h-5" />
         </button>

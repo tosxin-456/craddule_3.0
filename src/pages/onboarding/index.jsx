@@ -85,6 +85,8 @@ export default function FounderOnboarding() {
   const [loading, setLoading] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [review, setReview] = useState(null);
+  const [isSkipping, setIsSkipping] = useState(false);
+
   const navigate = useNavigate();
   useEffect(() => setMounted(true), []);
 
@@ -96,26 +98,20 @@ export default function FounderOnboarding() {
   const canProceed = answers[currentStep]?.trim().length > 0;
 
   const saveStep = async (step, answer) => {
-    try {
-      setLoading(true);
+    if (isAnalyzing) return true; // 🔒 block autosave during submit
 
-      const res = await fetch(`${API_BASE_URL}/onboarding/save-step`, {
+    try {
+      await fetch(`${API_BASE_URL}/onboarding/save-step`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
           step,
-          question: questions[step].label,
+          question: questions[step],
           answer
         })
       });
-
-      const data = await res.json();
-
-      setLoading(false);
-      return res.ok;
-    } catch (err) {
-      console.error("Error saving step:", err);
-      setLoading(false);
+      return true;
+    } catch {
       return false;
     }
   };
@@ -131,7 +127,7 @@ export default function FounderOnboarding() {
 
       if (res.ok) {
         setReview(data.aiReview);
-        console.log(data.aiReview)
+        console.log(data.aiReview);
         setShowReview(true);
       } else {
         console.error("Failed to fetch review:", data);
@@ -145,21 +141,23 @@ export default function FounderOnboarding() {
   useEffect(() => {
     // Fetch latest review when component mounts
     fetchLatestReview();
-  }, []); 
+  }, []);
 
   const submitAll = async () => {
-    if (isAnalyzing) return; // 🔒 prevent double submit
+    if (isAnalyzing) return;
+
+    // 🛑 Cancel pending autosave
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current);
+      saveTimeout.current = null;
+    }
+
     setIsAnalyzing(true);
 
     try {
-      setIsAnalyzing(true);
-
-      const res = await fetch(`${API_BASE_URL}/onboarding/`, {
+      const res = await fetch(`${API_BASE_URL}/onboarding`, {
         method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          answers
-        })
+        headers: getAuthHeaders()
       });
 
       const data = await res.json();
@@ -168,19 +166,12 @@ export default function FounderOnboarding() {
         throw new Error(data.message || "Submission failed");
       }
 
-      const { aiReview } = data;
-      setReview(aiReview);
-      setIsAnalyzing(false);
-
-      // Show review inline
-      if (aiReview.status === "ok") {
-        setShowReview(true);
-      } else {
-        setShowReview(true);
-      }
+      setReview(data.aiReview);
+      setShowReview(true);
     } catch (err) {
       console.error(err);
       alert(err.message);
+    } finally {
       setIsAnalyzing(false);
     }
   };
@@ -229,13 +220,19 @@ export default function FounderOnboarding() {
   };
 
   const handleSkip = async () => {
+    if (isSkipping) return; // 🔒 block multiple clicks
+    setIsSkipping(true);
+
     const success = await saveStep(currentStep, "No answer provided");
     if (!success) {
       alert("Failed to save your skipped answer. Please try again.");
+      setIsSkipping(false);
       return;
     }
+
     setAnswers({ ...answers, [currentStep]: "No answer provided" });
-    handleNext();
+    await handleNext(); // make sure we wait for handleNext
+    setIsSkipping(false);
   };
 
   const handleReviseAnswers = () => {
@@ -647,9 +644,13 @@ export default function FounderOnboarding() {
 
                 <button
                   onClick={handleSkip}
-                  className="px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm text-slate-500 hover:text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all"
+                  disabled={isSkipping}
+                  className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm text-slate-500 hover:text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Skip question
+                  {isSkipping && (
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                  )}
+                  <span>{isSkipping ? "Skipping..." : "Skip question"}</span>
                 </button>
               </div>
 
