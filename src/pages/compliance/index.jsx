@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "../../config/apiConfig";
+import toast from "react-hot-toast";
 
 export default function Compliance() {
   const [selectedItem, setSelectedItem] = useState(null);
@@ -95,11 +96,11 @@ export default function Compliance() {
         );
         setSelectedItem(null);
       } else {
-        alert(data.message || "Error submitting document");
+        toast.error(data.message || "Error submitting document");
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to submit document");
+      toast.error("Failed to submit document");
     }
   };
 
@@ -111,15 +112,15 @@ export default function Compliance() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message || "Authorization granted");
+        toast.success(data.message || "Authorization granted");
         setShowAuthModal(false);
         fetchComplianceItems();
       } else {
-        alert("Failed to grant authorization");
+        toast.error("Failed to grant authorization");
       }
     } catch (err) {
       console.error(err);
-      alert("Error granting authorization");
+      toast.error("Error granting authorization");
     }
   };
 
@@ -324,7 +325,7 @@ function DocumentModal({ item, onClose, onSubmit }) {
       (f) => f.required && (!formData[f.name] || formData[f.name].trim() === "")
     );
     if (missingFields.length > 0) {
-      alert(
+      toast.error(
         `Please fill all required fields: ${missingFields
           .map((f) => f.label)
           .join(", ")}`
@@ -359,7 +360,7 @@ function DocumentModal({ item, onClose, onSubmit }) {
             <div key={field.name}>
               <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1 sm:mb-1.5">
                 {field.label}
-                {field.required && <span className="text-red-500 ml-1">*</span>}
+                {field.required && <span className="text-yellow-500 ml-1">*</span>}
               </label>
               {field.type === "textarea" ? (
                 <textarea
@@ -423,7 +424,7 @@ function AuthorizationModal({ onClose, onGrant }) {
   const [agreed, setAgreed] = useState(false);
   const handleGrant = () => {
     if (!agreed) {
-      alert("Please agree to the terms before proceeding");
+      toast.error("Please agree to the terms before proceeding");
       return;
     }
     onGrant();

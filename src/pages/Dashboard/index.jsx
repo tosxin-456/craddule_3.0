@@ -220,13 +220,13 @@ function PhaseCard({
   const bgColorClasses = {
     blue: "bg-blue-50",
     indigo: "bg-indigo-50",
-    purple: "bg-purple-50"
+    yellow: "bg-yellow-50"
   };
 
   const iconColorClasses = {
     blue: "text-blue-600",
     indigo: "text-indigo-600",
-    purple: "text-purple-600"
+    yellow: "text-yellow-600"
   };
 
   return (

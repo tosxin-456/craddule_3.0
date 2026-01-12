@@ -277,7 +277,7 @@ export default function FounderProfile() {
           <Section
             title="Next Required Action"
             icon={FileText}
-            gradient="from-indigo-500 to-purple-600"
+            gradient="from-indigo-500 to-yellow-600"
           >
             <Info label={nextAction.title} value={nextAction.description} />
           </Section>

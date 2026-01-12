@@ -15,6 +15,32 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "../../config/apiConfig";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+const BUSINESS_SECTORS = [
+  "Fintech",
+  "Healthtech",
+  "Edtech",
+  "E-commerce",
+  "SaaS",
+  "Logistics",
+  "Agribusiness",
+  "Proptech",
+  "Legaltech",
+  "Insurtech",
+  "Media & Entertainment",
+  "Manufacturing",
+  "Energy & Climate",
+  "Travel & Hospitality",
+  "Retail",
+  "Other"
+];
+
+const KEY_DOCUMENTS = [
+  "Business Model",
+  "Executive Summary",
+  "Marketing Plans"
+];
 
 const questions = [
   {
@@ -55,16 +81,22 @@ const questions = [
       "Example: We have an MVP with 15 beta users and $2K in monthly recurring revenue..."
   },
   {
+    label: "What traction or validation do you have so far?",
+    hint: "Evidence that your product/service has demand.",
+    placeholder:
+      "Example: 100+ beta signups, 20 paying customers, or partnerships with two local retailers..."
+  },
+  {
     label: "What are the key documents of your business that you have?",
     hint: "Include things like business brief, pitch deck, financials, market research, legal docs.",
     placeholder:
       "Example: Business brief for clarity, pitch deck for investors, financial forecast for planning, and legal documents for protection..."
   },
   {
-    label: "What traction or validation do you have so far?",
-    hint: "Evidence that your product/service has demand.",
+    label: "Which sector or industry is your business in?",
+    hint: "This helps us tailor insights, benchmarks, and support.",
     placeholder:
-      "Example: 100+ beta signups, 20 paying customers, or partnerships with two local retailers..."
+      "Example: Fintech (payments), Healthtech (telemedicine), Edtech (online learning), SaaS (B2B productivity)..."
   }
 ];
 
@@ -86,6 +118,7 @@ export default function FounderOnboarding() {
   const [showReview, setShowReview] = useState(false);
   const [review, setReview] = useState(null);
   const [isSkipping, setIsSkipping] = useState(false);
+  const [isOtherSector, setIsOtherSector] = useState(false);
 
   const navigate = useNavigate();
   useEffect(() => setMounted(true), []);
@@ -116,6 +149,43 @@ export default function FounderOnboarding() {
     }
   };
 
+  const fetchSavedAnswers = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/onboarding/answers`, {
+        headers: getAuthHeaders()
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) return;
+
+      const hydratedAnswers = {};
+
+      data.answers.forEach(({ step, answer }) => {
+        hydratedAnswers[step] = answer;
+      });
+
+      setAnswers(hydratedAnswers);
+
+      // Set char count for first step
+      setCharCount(hydratedAnswers[0]?.length || 0);
+
+      // Handle sector "Other"
+      const sectorStepIndex = questions.findIndex((q) =>
+        q.label.includes("sector")
+      );
+
+      if (
+        hydratedAnswers[sectorStepIndex] &&
+        !BUSINESS_SECTORS.includes(hydratedAnswers[sectorStepIndex])
+      ) {
+        setIsOtherSector(true);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchLatestReview = async () => {
     try {
       setLoading(true);
@@ -139,8 +209,8 @@ export default function FounderOnboarding() {
   };
 
   useEffect(() => {
-    // Fetch latest review when component mounts
     fetchLatestReview();
+    fetchSavedAnswers();
   }, []);
 
   const submitAll = async () => {
@@ -170,7 +240,7 @@ export default function FounderOnboarding() {
       setShowReview(true);
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -225,7 +295,7 @@ export default function FounderOnboarding() {
 
     const success = await saveStep(currentStep, "No answer provided");
     if (!success) {
-      alert("Failed to save your skipped answer. Please try again.");
+      toast.error("Failed to save your skipped answer. Please try again.");
       setIsSkipping(false);
       return;
     }
@@ -250,6 +320,9 @@ export default function FounderOnboarding() {
       navigate("/ai-walkthrough");
     }
   };
+
+  const isSectorQuestion =
+    currentQuestion.label === "Which sector or industry is your business in?";
 
   // Analyzing State
   if (isAnalyzing) {
@@ -314,7 +387,7 @@ export default function FounderOnboarding() {
         ? "from-green-500 to-emerald-500"
         : review.score >= 60
         ? "from-amber-500 to-orange-500"
-        : "from-orange-500 to-red-500";
+        : "from-orange-500 to-yellow-500";
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 p-4 sm:p-6 md:p-8 relative overflow-hidden">
@@ -452,42 +525,30 @@ export default function FounderOnboarding() {
           {/* Action Buttons */}
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row gap-4">
-              {!isApproved && (
-                <button
-                  onClick={handleReviseAnswers}
-                  className="group relative flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white transition-all transform hover:scale-105 active:scale-95 overflow-hidden shadow-xl flex-1"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <RefreshCw className="relative w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                  <span className="relative">Revise Answers</span>
-                </button>
-              )}
-
+              {/* Refine with AI */}
               <button
                 onClick={handlePrimaryAction}
                 className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all transform hover:scale-105 active:scale-95 flex-1"
               >
-                {isApproved ? (
-                  <>
-                    <span>Go to Dashboard</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </>
-                ) : (
-                  <>
-                    <Brain className="w-5 h-5" />
-                    <span>Refine with AI</span>
-                  </>
-                )}
+                <Brain className="w-5 h-5" />
+                <span>Refine with AI</span>
+              </button>
+
+              {/* Go to Dashboard */}
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all transform hover:scale-105 active:scale-95 flex-1"
+              >
+                <span>Go to Dashboard</span>
+                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </button>
             </div>
 
-            {!isApproved && (
-              <p className="text-xs sm:text-sm text-slate-500 text-center mt-4">
-                💡 Tip: Refining your answers now will help us provide better
-                support later
-              </p>
-            )}
+            {/* Optional tip for refining */}
+            <p className="text-xs sm:text-sm text-slate-500 text-center mt-4">
+              💡 Tip: Refining your answers now will help us provide better
+              support later
+            </p>
           </div>
         </div>
       </div>
@@ -573,26 +634,156 @@ export default function FounderOnboarding() {
                     </p>
                   </div>
                 </div>
-
                 <div className="relative group">
                   <div
                     className={`absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600 rounded-xl sm:rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 ${
                       isFocused ? "opacity-30" : ""
                     }`}
                   />
-                  <textarea
-                    rows={6}
-                    value={answers[currentStep] || ""}
-                    onChange={handleChange}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    placeholder={currentQuestion.placeholder}
-                    className={`relative w-full rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:outline-none transition-all resize-none bg-white/50 backdrop-blur-sm ${
-                      isFocused
-                        ? "border-blue-400 shadow-xl ring-2 sm:ring-4 ring-blue-100"
-                        : "border-slate-200 hover:border-slate-300 shadow-lg"
-                    }`}
-                  />
+
+                  {isSectorQuestion ? (
+                    <>
+                      <select
+                        value={answers[currentStep] || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          setAnswers({ ...answers, [currentStep]: value });
+                          saveStep(currentStep, value);
+
+                          setIsOtherSector(value === "Other");
+                        }}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                        className={`relative w-full rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:outline-none transition-all bg-white/50 backdrop-blur-sm ${
+                          isFocused
+                            ? "border-blue-400 shadow-xl ring-2 sm:ring-4 ring-blue-100"
+                            : "border-slate-200 hover:border-slate-300 shadow-lg"
+                        }`}
+                      >
+                        <option value="" disabled>
+                          Select a business sector
+                        </option>
+
+                        {BUSINESS_SECTORS.map((sector) => (
+                          <option key={sector} value={sector}>
+                            {sector}
+                          </option>
+                        ))}
+                      </select>
+
+                      {isOtherSector && (
+                        <input
+                          type="text"
+                          placeholder="Please specify your sector"
+                          value={answers[`${currentStep}_other`] || ""}
+                          onChange={(e) => {
+                            const otherValue = e.target.value;
+
+                            setAnswers({
+                              ...answers,
+                              [currentStep]: otherValue,
+                              [`${currentStep}_other`]: otherValue
+                            });
+
+                            saveStep(currentStep, otherValue);
+                          }}
+                          className="relative mt-4 w-full rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:outline-none transition-all bg-white/50 backdrop-blur-sm border-slate-200 hover:border-slate-300 focus:border-blue-400 focus:ring-2 sm:focus:ring-4 ring-blue-100 shadow-lg"
+                        />
+                      )}
+                    </>
+                  ) : currentQuestion.label.includes("key documents") ? (
+                    <div className="relative w-full rounded-xl sm:rounded-2xl border-2 p-4 sm:p-5 md:p-6 bg-white/50 backdrop-blur-sm border-slate-200 hover:border-slate-300 shadow-lg transition-all">
+                      <div className="flex flex-col gap-3">
+                        {KEY_DOCUMENTS.map((doc) => {
+                          const selectedDocs = Array.isArray(
+                            answers[currentStep]
+                          )
+                            ? answers[currentStep]
+                            : (answers[currentStep] || "")
+                                .split(", ")
+                                .filter(Boolean);
+
+                          const isChecked = selectedDocs.includes(doc);
+
+                          return (
+                            <label
+                              key={doc}
+                              className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all ${
+                                isChecked
+                                  ? "bg-blue-50 border-2 border-blue-200"
+                                  : "bg-white border-2 border-slate-100 hover:border-slate-200"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const prev = Array.isArray(
+                                    answers[currentStep]
+                                  )
+                                    ? answers[currentStep]
+                                    : (answers[currentStep] || "")
+                                        .split(", ")
+                                        .filter(Boolean);
+
+                                  const updated = e.target.checked
+                                    ? [...prev, doc]
+                                    : prev.filter((d) => d !== doc);
+
+                                  const displayValue = updated.join(", ");
+
+                                  setAnswers({
+                                    ...answers,
+                                    [currentStep]: displayValue
+                                  });
+
+                                  saveStep(currentStep, displayValue);
+                                }}
+                                className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              />
+                              <span
+                                className={`text-sm sm:text-base font-medium ${
+                                  isChecked ? "text-blue-900" : "text-slate-700"
+                                }`}
+                              >
+                                {doc}
+                              </span>
+                              {isChecked && (
+                                <CheckCircle className="w-5 h-5 text-blue-600 ml-auto" />
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+
+                      {answers[currentStep] &&
+                        answers[currentStep].length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-slate-200">
+                            <p className="text-xs text-slate-500 font-medium mb-2">
+                              Selected documents:
+                            </p>
+                            <p className="text-sm text-slate-700 font-semibold">
+                              {answers[currentStep]}
+                            </p>
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    <textarea
+                      rows={6}
+                      value={answers[currentStep] || ""}
+                      onChange={handleChange}
+                      onFocus={() => setIsFocused(true)}
+                      onBlur={() => setIsFocused(false)}
+                      placeholder={currentQuestion.placeholder}
+                      className={`relative w-full rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:outline-none transition-all resize-none bg-white/50 backdrop-blur-sm ${
+                        isFocused
+                          ? "border-blue-400 shadow-xl ring-2 sm:ring-4 ring-blue-100"
+                          : "border-slate-200 hover:border-slate-300 shadow-lg"
+                      }`}
+                    />
+                  )}
                 </div>
 
                 <div className="flex justify-between items-center mt-2 sm:mt-3 px-1">

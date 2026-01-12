@@ -5,7 +5,6 @@ import logo from "../../assets/logo.png";
 import { API_BASE_URL } from "../../config/apiConfig";
 import { useEffect } from "react";
 
-
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
     name: "",
@@ -45,38 +44,37 @@ export default function SignUpPage() {
     );
   }, []);
 
-const handleGoogleResponse = async (response) => {
-  try {
-    setLoading(true);
-    setError("");
+  const handleGoogleResponse = async (response) => {
+    try {
+      setLoading(true);
+      setError("");
 
-    const res = await fetch(`${API_BASE_URL}/users/google`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        idToken: response.credential
-      })
-    });
+      const res = await fetch(`${API_BASE_URL}/users/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          idToken: response.credential
+        })
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.message || "Google login failed");
+      if (!res.ok) {
+        throw new Error(data.message || "Google login failed");
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      navigate("/onboarding");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-
-    navigate("/onboarding");
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -94,10 +92,10 @@ const handleGoogleResponse = async (response) => {
           email: formData.email,
           phoneNumber: formData.phone,
           password: formData.password,
-          startupName: "My Startup", // default or you can add input field
-          industry: "Tech", // default or input field
-          stage: "Idea", // default or input field
-          country: "Nigeria" // default or input field
+          startupName: "My Startup",
+          industry: "Tech",
+          stage: "Idea",
+          country: "Nigeria"
         })
       });
 
@@ -107,24 +105,23 @@ const handleGoogleResponse = async (response) => {
         throw new Error(data.message || "Sign up failed");
       }
 
-      const { token, user } = data;
-
-      // store token in localStorage/sessionStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      // redirect to onboarding or dashboard
-      navigate("/onboarding");
+      /**
+       * IMPORTANT:
+       * Registration only creates user + OTP
+       * No token is stored here
+       */
+      // console.log(data);
+      navigate("/otp", {
+        state: {
+          otpId: data.otpId, // 👈 backend must return this
+          email: formData.email
+        }
+      });
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleSignIn = () => {
-    // alert("Google Sign-In would be initiated here");
-    navigate("/onboarding");
   };
 
   return (
@@ -163,12 +160,11 @@ const handleGoogleResponse = async (response) => {
             <p className="text-gray-600">Sign up to get started</p>
           </div>
           {error && (
-            <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg">
+            <div className="mb-4 p-3 text-sm text-yellow-700 bg-yellow-100 rounded-lg">
               {error}
             </div>
           )}
 
-   
           <div
             id="google-signin-btn"
             className="w-full mb-6 flex justify-center"

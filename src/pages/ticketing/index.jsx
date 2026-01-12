@@ -239,7 +239,7 @@ export default function FounderTickets() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Title <span className="text-red-500">*</span>
+                  Title <span className="text-yellow-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -254,7 +254,7 @@ export default function FounderTickets() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Description <span className="text-red-500">*</span>
+                  Description <span className="text-yellow-500">*</span>
                 </label>
                 <textarea
                   placeholder="Provide detailed information about your request"
@@ -383,7 +383,7 @@ function TicketRow({ ticket }) {
     Low: { text: "text-slate-600", dot: "bg-slate-400" },
     Medium: { text: "text-blue-600", dot: "bg-blue-500" },
     High: { text: "text-orange-600", dot: "bg-orange-500" },
-    Urgent: { text: "text-red-600", dot: "bg-red-500" }
+    Urgent: { text: "text-yellow-600", dot: "bg-yellow-500" }
   };
 
   const config = statusConfig[ticket.status] || statusConfig["Open"];

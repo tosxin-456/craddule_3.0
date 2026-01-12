@@ -17,14 +17,23 @@ import DocumentsVault from "./pages/document vault";
 import ComplianceForm from "./pages/compliance form";
 import Strategy from "./pages/strategy";
 import StrategySessions from "./pages/strategy session";
+import { Toaster } from "react-hot-toast";
+import VerifyOtp from "./pages/otp";
 
 function App() {
   return (
     <div className="font-mont">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000
+        }}
+      />
       <Routes>
         {/* ================= AUTH ROUTES ================= */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/otp" element={<VerifyOtp />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/onboarding" element={<FounderOnboarding />} />
         <Route path="/ai-walkthrough" element={<FounderAIWalkthrough />} />
@@ -37,20 +46,11 @@ function App() {
           <Route path="compliance" element={<Compliance />} />
           <Route path="documents" element={<DocumentsVault />} />
 
-          <Route
-            path="compliance/:docType"
-            element={<ComplianceForm />}
-          />
+          <Route path="compliance/:docType" element={<ComplianceForm />} />
 
           {/* Phase 2 */}
-          <Route
-            path="strategy"
-            element={<Strategy/>}
-          />
-          <Route
-            path="sessions"
-            element={<StrategySessions/>}
-          />
+          <Route path="strategy" element={<Strategy />} />
+          <Route path="sessions" element={<StrategySessions />} />
 
           {/* Phase 3 */}
           <Route path="funding" element={<FundingPathwayPage />} />

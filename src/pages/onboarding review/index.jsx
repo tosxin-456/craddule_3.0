@@ -49,7 +49,7 @@ export default function OnboardingReview() {
       ? "from-green-500 to-emerald-500"
       : review.score >= 60
       ? "from-amber-500 to-orange-500"
-      : "from-orange-500 to-red-500";
+      : "from-orange-500 to-yellow-500";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 p-4 sm:p-6 md:p-8 relative overflow-hidden">

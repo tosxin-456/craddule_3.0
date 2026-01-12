@@ -200,9 +200,9 @@ const handleLogout = () => {
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-3 py-2.5
-      text-sm font-semibold text-red-600
-      border border-red-200 rounded-xl
-      hover:bg-red-50 hover:border-red-300
+      text-sm font-semibold text-yellow-600
+      border border-yellow-200 rounded-xl
+      hover:bg-yellow-50 hover:border-yellow-300
       transition-all"
           >
             <LogOut className="w-4 h-4" />

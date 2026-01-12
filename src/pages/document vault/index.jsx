@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import { API_BASE_URL } from "../../config/apiConfig";
+import toast from "react-hot-toast";
 
 export default function DocumentsVault() {
   const [documents, setDocuments] = useState([]);
@@ -147,7 +148,7 @@ export default function DocumentsVault() {
       !newDocument.documentNumber ||
       !selectedFile
     ) {
-      alert("Please fill in all required fields and select a file");
+      toast.error("Please fill in all required fields and select a file");
       return;
     }
 
@@ -190,10 +191,10 @@ export default function DocumentsVault() {
       });
 
       // ✅ success feedback
-      alert("✅ Document added successfully");
+      toast.success("✅ Document added successfully");
     } catch (err) {
       console.error(err);
-      alert("❌ Failed to add document. Please try again.");
+      toast.error("❌ Failed to add document. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -237,9 +238,9 @@ export default function DocumentsVault() {
         icon: <Clock className="w-4 h-4" />
       },
       Expired: {
-        bg: "bg-gradient-to-r from-red-50 to-rose-50",
-        text: "text-red-700",
-        border: "border-red-200",
+        bg: "bg-gradient-to-r from-yellow-50 to-rose-50",
+        text: "text-yellow-700",
+        border: "border-yellow-200",
         icon: <Clock className="w-4 h-4" />
       }
     };
@@ -309,15 +310,15 @@ export default function DocumentsVault() {
 
         {/* Missing Documents Alert */}
         {getMissingDocuments().length > 0 && (
-          <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm">
-            <div className="bg-red-100 rounded-xl p-2">
-              <Info className="w-6 h-6 text-red-600 flex-shrink-0" />
+          <div className="bg-gradient-to-r from-yellow-50 to-rose-50 border border-yellow-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm">
+            <div className="bg-yellow-100 rounded-xl p-2">
+              <Info className="w-6 h-6 text-yellow-600 flex-shrink-0" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-red-900 text-lg">
+              <h3 className="font-semibold text-yellow-900 text-lg">
                 Missing Required Documents
               </h3>
-              <p className="text-sm text-red-700 mt-1">
+              <p className="text-sm text-yellow-700 mt-1">
                 You are missing {getMissingDocuments().length} required
                 document(s): {getMissingDocuments().join(", ")}
               </p>
@@ -401,7 +402,7 @@ export default function DocumentsVault() {
                             ? "bg-gradient-to-br from-green-50 to-emerald-50 text-green-600"
                             : doc.status === "Expiring Soon"
                             ? "bg-gradient-to-br from-amber-50 to-orange-50 text-amber-600"
-                            : "bg-gradient-to-br from-red-50 to-rose-50 text-red-600"
+                            : "bg-gradient-to-br from-yellow-50 to-rose-50 text-yellow-600"
                         }`}
                       >
                         {config.icon}

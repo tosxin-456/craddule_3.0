@@ -61,10 +61,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    // alert("Google Sign-In would be initiated here");
-    navigate("/dashboard");
-  };
+
 
   useEffect(() => {
     /* global google */
@@ -135,7 +132,7 @@ export default function LoginPage() {
 
           {/* ERROR */}
           {error && (
-            <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg">
+            <div className="mb-4 p-3 text-sm text-yellow-700 bg-yellow-100 rounded-lg">
               {error}
             </div>
           )}
