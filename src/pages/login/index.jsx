@@ -50,7 +50,7 @@ export default function LoginPage() {
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
-
+      console.log(user);
       navigate(
         user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
       );
@@ -60,8 +60,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-
 
   useEffect(() => {
     /* global google */
@@ -106,8 +104,9 @@ export default function LoginPage() {
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-
-      navigate("/onboarding");
+      navigate(
+        data.user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
+      );
     } catch (err) {
       setError(err.message);
     } finally {

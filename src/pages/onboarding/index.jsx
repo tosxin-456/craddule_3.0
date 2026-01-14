@@ -539,52 +539,40 @@ export default function FounderOnboarding() {
               </div>
             </div>
           )}
-
           {/* Action Buttons */}
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row gap-4">
-              {/* Refine with AI — ONLY if something is missing */}
-              {needsRefinement && (
+            <div className="flex flex-col gap-4">
+              {needsRefinement ? (
+                <>
+                  {/* Refine with Abby */}
+                  <button
+                    onClick={handlePrimaryAction}
+                    className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all transform hover:scale-105 active:scale-95"
+                  >
+                    <Brain className="w-5 h-5" />
+                    <span>Refine with Abby</span>
+                  </button>
+
+                  {/* Explanation */}
+                  <p className="text-xs sm:text-sm text-slate-600 text-center">
+                    💡 You’re missing{" "}
+                    <span className="font-semibold">{missingDocs.length}</span>{" "}
+                    required document{missingDocs.length > 1 ? "s" : ""}. To
+                    continue, you need to refine and create these documents with
+                    Abby.
+                  </p>
+                </>
+              ) : (
+                /* Go to Dashboard */
                 <button
-                  onClick={handlePrimaryAction}
-                  className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all transform hover:scale-105 active:scale-95 flex-1"
+                  onClick={() => navigate("/dashboard")}
+                  className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 transition-all transform hover:scale-105 active:scale-95"
                 >
-                  <Brain className="w-5 h-5" />
-                  <span>Refine with AI</span>
+                  <span>Go to Dashboard</span>
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </button>
               )}
-
-              {/* Go to Dashboard — disabled if refinement is needed */}
-              <button
-                onClick={() => {
-                  if (needsRefinement) {
-                    console.log("Missing docs:", missingDocs);
-                    toast.error(
-                      `You need to refine: ${missingDocs.join(", ")}`
-                    );
-                    return;
-                  }
-                  navigate("/dashboard");
-                }}
-                className={`group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold transition-all transform hover:scale-105 active:scale-95 flex-1 ${
-                  needsRefinement
-                    ? "text-white bg-gray-400 cursor-not-allowed"
-                    : "text-white bg-green-600 hover:bg-green-700"
-                }`}
-                // disabled={needsRefinement}
-              >
-                <span>Go to Dashboard</span>
-                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-              </button>
             </div>
-
-            {needsRefinement && (
-              <p className="text-xs sm:text-sm text-slate-500 text-center mt-4">
-                💡 You’re missing {missingDocs.length} key document
-                {missingDocs.length > 1 ? "s" : ""}. Refining now helps us guide
-                you better.
-              </p>
-            )}
           </div>
         </div>
       </div>
