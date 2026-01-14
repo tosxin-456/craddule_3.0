@@ -14,7 +14,7 @@ import {
   Plus,
   X
 } from "lucide-react";
-import { API_BASE_URL } from "../../config/apiConfig";
+import { API_BASE_URL, IMAGE_URL } from "../../config/apiConfig";
 import toast from "react-hot-toast";
 
 export default function DocumentsVault() {
@@ -33,14 +33,8 @@ export default function DocumentsVault() {
     documentNumber: ""
   });
 
-  const requiredDocuments = [
-    "CAC Certificate",
-    "Industry License",
-    "Tax Identification Number"
-  ];
-
   const documentTypeConfig = {
-    CAC1: {
+    CAC: {
       icon: <Building2 className="w-5 h-5" />,
       image:
         "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&h=300&fit=crop"
@@ -75,36 +69,6 @@ export default function DocumentsVault() {
       image:
         "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=300&fit=crop"
     },
-    "Business Permit": {
-      icon: <Shield className="w-5 h-5" />,
-      image:
-        "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=300&fit=crop"
-    },
-    "Environmental Clearance": {
-      icon: <FileText className="w-5 h-5" />,
-      image:
-        "https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?w=400&h=300&fit=crop"
-    },
-    "Fire Safety Certificate": {
-      icon: <Shield className="w-5 h-5" />,
-      image:
-        "https://images.unsplash.com/photo-1551836022-deb4988cc6c0?w=400&h=300&fit=crop"
-    },
-    "Health Permit": {
-      icon: <FileText className="w-5 h-5" />,
-      image:
-        "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&h=300&fit=crop"
-    },
-    "Import License": {
-      icon: <Receipt className="w-5 h-5" />,
-      image:
-        "https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=400&h=300&fit=crop"
-    },
-    "Export License": {
-      icon: <Receipt className="w-5 h-5" />,
-      image:
-        "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&h=300&fit=crop"
-    },
     Other: {
       icon: <FileText className="w-5 h-5" />,
       image:
@@ -129,8 +93,8 @@ export default function DocumentsVault() {
       if (!response.ok) throw new Error("Failed to fetch documents");
 
       const data = await response.json();
-      console.log(data.documents);
-      setDocuments(data.documents); // { success: true, documents }
+      console.log("Documents:", data.documents);
+      setDocuments(data.documents || []);
     } catch (error) {
       console.error("Error fetching documents:", error);
       setDocuments([]);
@@ -175,10 +139,8 @@ export default function DocumentsVault() {
 
       if (!response.ok) throw new Error("Failed to add document");
 
-      // ✅ refresh list
       await fetchDocuments();
 
-      // ✅ reset + close
       setShowAddModal(false);
       setSelectedFile(null);
       setNewDocument({
@@ -190,7 +152,6 @@ export default function DocumentsVault() {
         documentNumber: ""
       });
 
-      // ✅ success feedback
       toast.success("✅ Document added successfully");
     } catch (err) {
       console.error(err);
@@ -200,23 +161,85 @@ export default function DocumentsVault() {
     }
   };
 
-  const calculateStatus = (expiry) => {
-    if (
-      !expiry ||
-      expiry === "None" ||
-      expiry === "Perpetual" ||
-      expiry === "0000-00-00"
-    )
-      return "Active";
-    const expiryDate = new Date(expiry);
+  const calculateStatus = (expiryDate) => {
+    if (!expiryDate) return "Active";
+    const expiry = new Date(expiryDate);
     const today = new Date();
-    const daysUntilExpiry = Math.ceil(
-      (expiryDate - today) / (1000 * 60 * 60 * 24)
-    );
+    const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
 
     if (daysUntilExpiry < 0) return "Expired";
     if (daysUntilExpiry <= 60) return "Expiring Soon";
     return "Active";
+  };
+
+  const parseGrants = (grantsData) => {
+    if (!grantsData) return "N/A";
+    try {
+      const parsed = JSON.parse(grantsData);
+      if (parsed.businessName) {
+        return `Business Registration for ${parsed.businessName}`;
+      }
+      return grantsData;
+    } catch {
+      return grantsData;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // View a file in a new tab
+  const handleView = (fileUrl) => {
+    if (!fileUrl) return toast.error("No file available to view");
+
+    try {
+      window.open(`${IMAGE_URL}${fileUrl}`, "_blank");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to view document");
+    }
+  };
+
+  // Download a file (basic)
+  const handleDownload = async (fileUrl) => {
+    if (!fileUrl) return toast.error("No file available");
+
+    try {
+      const res = await fetch(`${IMAGE_URL}${fileUrl}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+
+      if (!res.ok) throw new Error("Download failed");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileUrl.split("/").pop(); // filename
+      document.body.appendChild(a);
+      a.click();
+
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Document downloaded successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to download document");
+    }
   };
 
   const getMissingDocuments = () => {
@@ -290,7 +313,11 @@ export default function DocumentsVault() {
                 </div>
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl px-3 py-2 sm:px-5 sm:py-3 text-center min-w-[80px] sm:min-w-[120px] shadow-lg">
                   <div className="text-xl sm:text-3xl font-bold text-white">
-                    {documents.filter((d) => d.status === "Active").length}
+                    {
+                      documents.filter(
+                        (d) => calculateStatus(d.expiryDate) === "Active"
+                      ).length
+                    }
                   </div>
                   <div className="text-[10px] sm:text-xs text-blue-100 mt-0.5 font-medium">
                     Active
@@ -378,6 +405,13 @@ export default function DocumentsVault() {
             {documents.map((doc) => {
               const config =
                 documentTypeConfig[doc.name] || documentTypeConfig["Other"];
+              const currentStatus = calculateStatus(doc.expiryDate);
+              const displayGrants = parseGrants(doc.grants);
+              const displayExpiry = doc.expiryDate
+                ? formatDate(doc.expiryDate)
+                : "Perpetual";
+              const displayIssueDate = formatDate(doc.issueDate);
+
               return (
                 <div
                   key={doc.id}
@@ -398,9 +432,9 @@ export default function DocumentsVault() {
                       {/* Icon */}
                       <div
                         className={`rounded-xl p-3 shadow-sm ${
-                          doc.status === "Active"
+                          currentStatus === "Active"
                             ? "bg-gradient-to-br from-green-50 to-emerald-50 text-green-600"
-                            : doc.status === "Expiring Soon"
+                            : currentStatus === "Expiring Soon"
                             ? "bg-gradient-to-br from-amber-50 to-orange-50 text-amber-600"
                             : "bg-gradient-to-br from-yellow-50 to-rose-50 text-yellow-600"
                         }`}
@@ -419,7 +453,7 @@ export default function DocumentsVault() {
                               {doc.fullName}
                             </p>
                           </div>
-                          {getStatusBadge(doc.status)}
+                          {getStatusBadge(currentStatus)}
                         </div>
 
                         {/* Details Grid */}
@@ -431,7 +465,7 @@ export default function DocumentsVault() {
                                 Grants
                               </p>
                               <p className="text-sm text-slate-700">
-                                {doc.grants}
+                                {displayGrants}
                               </p>
                             </div>
                           </div>
@@ -443,7 +477,7 @@ export default function DocumentsVault() {
                                 Expiry Date
                               </p>
                               <p className="text-sm text-slate-700">
-                                {doc.expiry || "Perpetual"}
+                                {displayExpiry}
                               </p>
                             </div>
                           </div>
@@ -455,7 +489,7 @@ export default function DocumentsVault() {
                                 Document Number
                               </p>
                               <p className="text-sm text-slate-700 font-mono">
-                                {doc.documentNumber}
+                                {doc.documentNumber || "N/A"}
                               </p>
                             </div>
                           </div>
@@ -467,7 +501,7 @@ export default function DocumentsVault() {
                                 Issue Date
                               </p>
                               <p className="text-sm text-slate-700">
-                                {doc.issueDate}
+                                {displayIssueDate}
                               </p>
                             </div>
                           </div>
@@ -475,15 +509,23 @@ export default function DocumentsVault() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 pt-3 border-t border-blue-100">
-                          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg text-sm font-medium">
+                          <button
+                            onClick={() => handleView(doc.fileUrl)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg text-sm font-medium"
+                          >
                             <Eye className="w-4 h-4" />
                             View
                           </button>
-                          <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm font-medium text-slate-700">
+                          <button
+                            onClick={() =>
+                              handleDownload(doc.fileUrl, doc.name)
+                            }
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm font-medium text-slate-700"
+                          >
                             <Download className="w-4 h-4" />
                             Download
                           </button>
-                          {doc.status === "Expiring Soon" && (
+                          {currentStatus === "Expiring Soon" && (
                             <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 transition-all shadow-md hover:shadow-lg text-sm font-medium ml-auto">
                               Renew Now
                             </button>
@@ -502,7 +544,7 @@ export default function DocumentsVault() {
         {showAddModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
+              <div className="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
                 <h2 className="text-2xl font-bold text-slate-900">
                   Add Document
                 </h2>
@@ -527,7 +569,7 @@ export default function DocumentsVault() {
                         type: e.target.value
                       })
                     }
-                    className="w-full px-4 py-2 border border-slate-300 rounded-xl"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="CAC Certificate">CAC Certificate</option>
                     <option value="Industry License">Industry License</option>
@@ -554,7 +596,7 @@ export default function DocumentsVault() {
                           type: e.target.value
                         })
                       }
-                      className="w-full px-4 py-2 border border-slate-300 rounded-xl"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Environmental Permit"
                     />
                   </div>
@@ -584,8 +626,14 @@ export default function DocumentsVault() {
                   <input
                     type="file"
                     onChange={(e) => setSelectedFile(e.target.files[0])}
-                    className="w-full"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    accept=".pdf,.jpg,.jpeg,.png"
                   />
+                  {selectedFile && (
+                    <p className="text-sm text-slate-600 mt-2">
+                      Selected: {selectedFile.name}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -623,7 +671,7 @@ export default function DocumentsVault() {
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Expiry Date
+                      Expiry Date (Optional)
                     </label>
                     <input
                       type="date"
@@ -673,6 +721,7 @@ export default function DocumentsVault() {
 
                   <button
                     onClick={() => setShowAddModal(false)}
+                    disabled={isSubmitting}
                     className="px-6 py-3 rounded-xl border border-slate-300 hover:bg-slate-50 transition-colors font-medium text-slate-700"
                   >
                     Cancel
@@ -682,35 +731,6 @@ export default function DocumentsVault() {
             </div>
           </div>
         )}
-
-        {/* Info Footer */}
-        <div className=" from-blue-600 to-blue-500 rounded-2xl overflow-hidden shadow-xl">
-          <div className="relative">
-            <img
-              src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=1200&h=200&fit=crop"
-              alt="Secure storage"
-              className="w-full h-32 object-cover opacity-20"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/95 to-blue-500/95"></div>
-            <div className="absolute inset-0 flex items-center p-6">
-              <div className="flex items-start gap-4 w-full">
-                <div className="bg-white rounded-xl p-3 shadow-lg">
-                  <Shield className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-xl text-white">
-                    Secure Storage
-                  </h3>
-                  <p className="text-blue-50 mt-2 text-sm leading-relaxed">
-                    All documents are encrypted and stored securely. You can
-                    access them anytime and share them with authorized parties
-                    through secure links.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

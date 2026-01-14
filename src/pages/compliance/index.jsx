@@ -2,14 +2,16 @@ import {
   Shield,
   FilePlus,
   CheckCircle,
-  AlertCircle,
   Loader2,
   FileText,
   Building2,
   Receipt,
-  X
+  X,
+  Upload,
+  AlertCircle
 } from "lucide-react";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "../../config/apiConfig";
 import toast from "react-hot-toast";
 
@@ -18,41 +20,13 @@ export default function Compliance() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [complianceItems, setComplianceItems] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const REQUIRED_ITEMS = [
-    {
-      id: "cac",
-      title: "Business Registration (CAC)",
-      description: "Corporate Affairs Commission registration certificate",
-      status: "Not Started",
-      cost: "₦0",
-      canFill: true,
-      icon: <Building2 className="w-5 h-5" />
-    },
-    {
-      id: "license",
-      title: "Industry License",
-      description: "Required operational license for your business sector",
-      status: "Not Started",
-      cost: "₦75,000",
-      canFill: true,
-      icon: <Shield className="w-5 h-5" />
-    },
-    {
-      id: "tin",
-      title: "Tax Identification Number (TIN)",
-      description: "Federal Inland Revenue Service tax registration",
-      status: "Not Started",
-      cost: "₦0",
-      canFill: true,
-      icon: <Receipt className="w-5 h-5" />
-    }
-  ];
+  const [authStatus, setAuthStatus] = useState(false);
 
   const token = localStorage.getItem("token");
 
   useEffect(() => {
     fetchComplianceItems();
+    fetchAuthorizationStatus();
   }, []);
 
   const fetchComplianceItems = async () => {
@@ -62,7 +36,7 @@ export default function Compliance() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      console.log(data);
+      console.log("Compliance items:", data);
       if (data.success) {
         setComplianceItems(data.items);
       }
@@ -72,23 +46,51 @@ export default function Compliance() {
     setLoading(false);
   };
 
-  // Add missing items to the state
-  const addMissingItems = (items) => {
-    setComplianceItems((prev) => [...prev, ...items]);
+  const fetchAuthorizationStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/compliance/authorize`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      console.log("Authorization response:", data);
+
+      if (data.success && data.authorization) {
+        // Handle both boolean and integer (1/0) values
+        const isAuthorized =
+          data.authorization.authorized === true ||
+          data.authorization.authorized === 1;
+        console.log("Setting authStatus to:", isAuthorized);
+        setAuthStatus(isAuthorized);
+      }
+    } catch (err) {
+      console.error("Error fetching auth status:", err);
+    }
   };
 
   const handleSubmitDocument = async (itemId, formData) => {
     try {
+      const body = new FormData();
+      body.append("itemId", itemId);
+
+      // append all other form fields
+      Object.keys(formData).forEach((key) => {
+        if (formData[key] !== undefined) {
+          body.append(key, formData[key]);
+        }
+      });
+
       const res = await fetch(`${API_BASE_URL}/compliance/submit`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ itemId, formData })
+        body
       });
+
       const data = await res.json();
+
       if (data.success) {
+        toast.success("Document submitted successfully!");
         setComplianceItems((prev) =>
           prev.map((item) =>
             item.itemId === itemId ? { ...item, ...data.item } : item
@@ -101,26 +103,6 @@ export default function Compliance() {
     } catch (err) {
       console.error(err);
       toast.error("Failed to submit document");
-    }
-  };
-
-  const handleGrantAuthorization = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/compliance/authorize`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(data.message || "Authorization granted");
-        setShowAuthModal(false);
-        fetchComplianceItems();
-      } else {
-        toast.error("Failed to grant authorization");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error granting authorization");
     }
   };
 
@@ -153,6 +135,16 @@ export default function Compliance() {
             </div>
           </div>
         </header>
+
+        {/* Authorization Status Indicator */}
+        {authStatus && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <span className="text-sm text-green-700 font-medium">
+              Authorization granted - You can now fill documents
+            </span>
+          </div>
+        )}
 
         {/* Compliance Items */}
         {loading ? (
@@ -194,16 +186,27 @@ export default function Compliance() {
                       </div>
 
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                        <StatusBadge status={item.status} />
-                        {item.canFill && item.status === "Not Started" && (
-                          <button
-                            onClick={() => setSelectedItem(item)}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
-                          >
-                            <FilePlus className="w-4 h-4" />
-                            Fill Document
-                          </button>
-                        )}
+                        <StatusBadge status={item.complianceStatus} />
+
+                        {/* Show button only if authorized AND status is Not Started */}
+                        {authStatus &&
+                          item.complianceStatus === "Not Started" && (
+                            <button
+                              onClick={() => setSelectedItem(item)}
+                              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
+                            >
+                              <FilePlus className="w-4 h-4" />
+                              Fill Document
+                            </button>
+                          )}
+
+                        {/* Show message if not authorized */}
+                        {!authStatus &&
+                          item.complianceStatus === "Not Started" && (
+                            <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 italic">
+                              Grant authorization below to fill this document
+                            </div>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -214,27 +217,30 @@ export default function Compliance() {
         )}
 
         {/* Authorization */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 w-full">
-            <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-3 shadow-lg">
-              <FileText className="w-5 sm:w-6 h-5 sm:h-6 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg sm:text-xl text-white">
-                Processing Authorization
-              </h3>
-              <p className="text-blue-50 mt-1 sm:mt-2 text-xs sm:text-sm leading-relaxed">
-                Grant Craddule permission to submit documents on your behalf.
-              </p>
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="mt-3 sm:mt-4 px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-white text-blue-600 hover:bg-blue-50 transition-all font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl w-full sm:w-auto"
-              >
-                Grant Authorization
-              </button>
+        {!authStatus && (
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 w-full">
+              <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-3 shadow-lg">
+                <Shield className="w-5 sm:w-6 h-5 sm:h-6 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg sm:text-xl text-white">
+                  Processing Authorization Required
+                </h3>
+                <p className="text-blue-50 mt-1 sm:mt-2 text-xs sm:text-sm leading-relaxed">
+                  Grant Craddule permission to submit documents on your behalf
+                  to enable document filling.
+                </p>
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="mt-3 sm:mt-4 px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-white text-blue-600 hover:bg-blue-50 transition-all font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl w-full sm:w-auto"
+                >
+                  Grant Authorization
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Document Modal */}
@@ -250,7 +256,11 @@ export default function Compliance() {
       {showAuthModal && (
         <AuthorizationModal
           onClose={() => setShowAuthModal(false)}
-          onGrant={handleGrantAuthorization}
+          onSuccess={() => {
+            setAuthStatus(true);
+            setShowAuthModal(false);
+            fetchComplianceItems();
+          }}
         />
       )}
     </div>
@@ -276,9 +286,15 @@ function StatusBadge({ status }) {
       bg: "bg-gradient-to-r from-slate-50 to-slate-100",
       text: "text-slate-700",
       border: "border-slate-200"
+    },
+    Rejected: {
+      icon: <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
+      bg: "bg-gradient-to-r from-red-50 to-red-100",
+      text: "text-red-700",
+      border: "border-red-200"
     }
   };
-  const style = config[status];
+  const style = config[status] || config["Not Started"];
   return (
     <span
       className={`flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg border ${style.bg} ${style.text} ${style.border} whitespace-nowrap`}
@@ -292,152 +308,470 @@ function StatusBadge({ status }) {
 // Document Modal
 function DocumentModal({ item, onClose, onSubmit }) {
   const [formData, setFormData] = useState({});
+  const [errors, setErrors] = useState({});
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
+  const firstInputRef = useRef(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const getFormFields = () => {
-    // Generic form fields for all compliance items
-    return [
-      {
-        name: "businessName",
-        label: "Business Name",
-        type: "text",
-        required: true
-      },
-      {
-        name: "businessAddress",
-        label: "Business Address",
-        type: "textarea",
-        required: true
-      },
-      {
-        name: "contactPerson",
-        label: "Contact Person",
-        type: "text",
-        required: true
-      },
-      { name: "phone", label: "Phone Number", type: "tel", required: true },
-      { name: "email", label: "Email Address", type: "email", required: true }
-    ];
+  useEffect(() => {
+    // Focus first input on mount
+    firstInputRef.current?.focus();
+
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
+
+  const getFormFields = () => [
+    {
+      name: "businessName",
+      label: "Business Name",
+      type: "text",
+      required: true,
+      placeholder: "Enter your business name"
+    },
+    {
+      name: "businessAddress",
+      label: "Business Address",
+      type: "textarea",
+      required: true,
+      placeholder: "Enter complete business address"
+    },
+    {
+      name: "contactPerson",
+      label: "Contact Person",
+      type: "text",
+      required: true,
+      placeholder: "Full name of contact person"
+    },
+    {
+      name: "phone",
+      label: "Phone Number",
+      type: "tel",
+      required: true,
+      placeholder: "+234 800 000 0000"
+    },
+    {
+      name: "email",
+      label: "Email Address",
+      type: "email",
+      required: true,
+      placeholder: "email@example.com"
+    }
+  ];
+
+  const validateField = (name, value) => {
+    const field = getFormFields().find((f) => f.name === name);
+
+    if (field.required && (!value || value.trim() === "")) {
+      return `${field.label} is required`;
+    }
+
+    if (name === "email" && value) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) {
+        return "Please enter a valid email address";
+      }
+    }
+
+    if (name === "phone" && value) {
+      const phoneRegex = /^[\d\s+()-]+$/;
+      if (!phoneRegex.test(value) || value.replace(/\D/g, "").length < 10) {
+        return "Please enter a valid phone number";
+      }
+    }
+
+    return null;
   };
 
-  const handleSubmit = () => {
-    const fields = getFormFields();
-    const missingFields = fields.filter(
-      (f) => f.required && (!formData[f.name] || formData[f.name].trim() === "")
-    );
-    if (missingFields.length > 0) {
-      toast.error(
-        `Please fill all required fields: ${missingFields
-          .map((f) => f.label)
-          .join(", ")}`
-      );
+  const handleFieldChange = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/jpg"
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Only PDF and image files are allowed");
+        return;
+      }
+
+      setSelectedFile(file);
+      setFormData((prev) => ({ ...prev, file }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedFile) {
+      toast.error("Please upload a document");
       return;
     }
-    onSubmit(item.itemId, formData);
+    const token = localStorage.getItem("token");
+
+    const fields = getFormFields();
+    const errors = {};
+    fields.forEach((f) => {
+      const error = validateField(f.name, formData[f.name]);
+      if (error) errors[f.name] = error;
+    });
+    if (Object.keys(errors).length) {
+      setErrors(errors);
+      toast.error("Fix errors before submitting");
+      return;
+    }
+
+    const body = new FormData();
+    body.append("itemId", item.itemId);
+    body.append("file", selectedFile);
+    body.append("formData", JSON.stringify(formData));
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/compliance/submit`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Clear form
+        setFormData({});
+        setSelectedFile(null);
+
+        // Show success modal
+        setShowSuccessModal(true);
+      } else {
+        // toast.error({
+        //   message: data.message || "Submission failed",
+        //   type: "error"
+        // });
+        console.log(data);
+      }
+    } catch (err) {
+      toast.error("Submission failed");
+      console.log(err)
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onClose();
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
-        <div className="flex items-start justify-between p-4 sm:p-6 border-b border-slate-200">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-fade-in"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full text-center animate-slide-up">
+            <CheckCircle className="mx-auto w-10 h-10 text-green-500 mb-4" />
+            <h3 className="text-lg font-semibold">Document Submitted!</h3>
+            <p className="text-sm text-slate-600 mt-2">
+              Your document has been successfully submitted.
+            </p>
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                onClose(); // close main modal
+              }}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-slide-up">
+        {/* Header */}
+        <div className="flex items-start justify-between p-4 sm:p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="flex-1 pr-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+            <h2
+              id="modal-title"
+              className="text-xl sm:text-2xl font-bold text-slate-900"
+            >
               {item.title}
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 mt-1">
-              {item.description}
+              {item.fullName}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 hover:bg-slate-100 transition-colors flex-shrink-0"
+            className="rounded-lg p-2 hover:bg-white/80 transition-colors flex-shrink-0"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-180px)] p-4 sm:p-6 space-y-3 sm:space-y-4">
-          {getFormFields().map((field) => (
+        {/* Form Fields */}
+        <div className="overflow-y-auto max-h-[calc(95vh-240px)] sm:max-h-[calc(90vh-240px)] p-4 sm:p-6 space-y-4">
+          {getFormFields().map((field, index) => (
             <div key={field.name}>
-              <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1 sm:mb-1.5">
+              <label
+                htmlFor={field.name}
+                className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5"
+              >
                 {field.label}
-                {field.required && <span className="text-yellow-500 ml-1">*</span>}
+                {field.required && <span className="text-red-500 ml-1">*</span>}
               </label>
               {field.type === "textarea" ? (
                 <textarea
+                  id={field.name}
+                  ref={index === 0 ? firstInputRef : null}
                   rows={3}
-                  className="w-full px-3 py-2 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder={field.placeholder}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
+                    errors[field.name]
+                      ? "border-red-300 bg-red-50"
+                      : "border-slate-300"
+                  }`}
                   value={formData[field.name] || ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, [field.name]: e.target.value })
+                    handleFieldChange(field.name, e.target.value)
+                  }
+                  aria-invalid={!!errors[field.name]}
+                  aria-describedby={
+                    errors[field.name] ? `${field.name}-error` : undefined
                   }
                 />
-              ) : field.type === "select" ? (
-                <select
-                  className="w-full px-3 py-2 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  value={formData[field.name] || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, [field.name]: e.target.value })
-                  }
-                >
-                  <option value="">Select {field.label}</option>
-                  {field.options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
               ) : (
                 <input
+                  id={field.name}
+                  ref={index === 0 ? firstInputRef : null}
                   type={field.type}
-                  className="w-full px-3 py-2 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder={field.placeholder}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all ${
+                    errors[field.name]
+                      ? "border-red-300 bg-red-50"
+                      : "border-slate-300"
+                  }`}
                   value={formData[field.name] || ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, [field.name]: e.target.value })
+                    handleFieldChange(field.name, e.target.value)
+                  }
+                  aria-invalid={!!errors[field.name]}
+                  aria-describedby={
+                    errors[field.name] ? `${field.name}-error` : undefined
                   }
                 />
               )}
+              {errors[field.name] && (
+                <p
+                  id={`${field.name}-error`}
+                  className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
+                >
+                  <AlertCircle className="w-3 h-3" />
+                  {errors[field.name]}
+                </p>
+              )}
             </div>
           ))}
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5">
+              Upload Document
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full px-4 py-6 border-2 border-dashed border-slate-300 rounded-lg hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png"
+                aria-label="Upload document"
+              />
+              {selectedFile ? (
+                <div className="flex items-center justify-center gap-3 text-green-600">
+                  <FileText className="w-5 h-5" />
+                  <span className="text-sm font-medium">
+                    {selectedFile.name}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <Upload className="w-6 h-6" />
+                  <p className="text-sm font-medium">
+                    Click to upload document
+                  </p>
+                  <p className="text-xs">PDF, JPG, or PNG (max 10MB)</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* Footer */}
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
           <button
             onClick={onClose}
-            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm sm:text-base font-medium"
+            disabled={isSubmitting}
+            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm sm:text-base font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 text-sm sm:text-base font-medium"
+            disabled={isSubmitting}
+            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 text-sm sm:text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Submit Document
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              "Submit Document"
+            )}
           </button>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-in {
+          from {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
 
 // Authorization Modal
-function AuthorizationModal({ onClose, onGrant }) {
+function AuthorizationModal({ onClose, onSuccess }) {
   const [agreed, setAgreed] = useState(false);
-  const handleGrant = () => {
+  const [loading, setLoading] = useState(false);
+  const token = localStorage.getItem("token");
+
+  const handleGrant = async () => {
     if (!agreed) {
-      toast.error("Please agree to the terms before proceeding");
+      toast.error("Please agree to the terms");
       return;
     }
-    onGrant();
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/compliance/authorize`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      console.log("Authorization grant response:", data);
+
+      if (data.success) {
+        toast.success(data.message || "Authorization granted successfully!");
+        onSuccess();
+      } else {
+        toast.error(data.message || "Failed to grant authorization");
+      }
+    } catch (err) {
+      console.error("Authorization error:", err);
+      toast.error("Error granting authorization");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[95vh] sm:max-h-auto overflow-y-auto">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="p-4 sm:p-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Grant Processing Authorization
-          </h2>
-          <p className="text-slate-600 mt-2 text-sm sm:text-base">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-blue-100 rounded-lg p-2">
+              <Shield className="w-6 h-6 text-blue-600" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+              Grant Processing Authorization
+            </h2>
+          </div>
+          <p className="text-slate-600 text-sm sm:text-base">
             By granting authorization, you allow Craddule to submit compliance
             documents and communicate with regulatory bodies on your behalf.
           </p>
@@ -460,16 +794,18 @@ function AuthorizationModal({ onClose, onGrant }) {
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-b-xl sm:rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm sm:text-base font-medium"
+            disabled={loading}
+            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm sm:text-base font-medium disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleGrant}
-            disabled={!agreed}
-            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium"
+            disabled={!agreed || loading}
+            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium flex items-center justify-center gap-2"
           >
-            Grant Authorization
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loading ? "Granting..." : "Grant Authorization"}
           </button>
         </div>
       </div>

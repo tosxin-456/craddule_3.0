@@ -186,6 +186,24 @@ export default function FounderOnboarding() {
     }
   };
 
+  const DOCUMENT_STEP_INDEX = questions.findIndex((q) =>
+    q.label.toLowerCase().includes("key documents")
+  );
+
+  const selectedDocsRaw = answers[DOCUMENT_STEP_INDEX] || "";
+  const selectedDocs = Array.isArray(selectedDocsRaw)
+    ? selectedDocsRaw
+    : selectedDocsRaw
+        .split(", ")
+        .map((d) => d.trim())
+        .filter(Boolean);
+
+  const missingDocs = KEY_DOCUMENTS.filter(
+    (doc) => !selectedDocs.includes(doc)
+  );
+  // console.log(missingDocs);
+  const needsRefinement = missingDocs.length > 0;
+
   const fetchLatestReview = async () => {
     try {
       setLoading(true);
@@ -525,30 +543,48 @@ export default function FounderOnboarding() {
           {/* Action Buttons */}
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row gap-4">
-              {/* Refine with AI */}
-              <button
-                onClick={handlePrimaryAction}
-                className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all transform hover:scale-105 active:scale-95 flex-1"
-              >
-                <Brain className="w-5 h-5" />
-                <span>Refine with AI</span>
-              </button>
+              {/* Refine with AI — ONLY if something is missing */}
+              {needsRefinement && (
+                <button
+                  onClick={handlePrimaryAction}
+                  className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all transform hover:scale-105 active:scale-95 flex-1"
+                >
+                  <Brain className="w-5 h-5" />
+                  <span>Refine with AI</span>
+                </button>
+              )}
 
-              {/* Go to Dashboard */}
+              {/* Go to Dashboard — disabled if refinement is needed */}
               <button
-                onClick={() => navigate("/dashboard")}
-                className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all transform hover:scale-105 active:scale-95 flex-1"
+                onClick={() => {
+                  if (needsRefinement) {
+                    console.log("Missing docs:", missingDocs);
+                    toast.error(
+                      `You need to refine: ${missingDocs.join(", ")}`
+                    );
+                    return;
+                  }
+                  navigate("/dashboard");
+                }}
+                className={`group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold transition-all transform hover:scale-105 active:scale-95 flex-1 ${
+                  needsRefinement
+                    ? "text-white bg-gray-400 cursor-not-allowed"
+                    : "text-white bg-green-600 hover:bg-green-700"
+                }`}
+                // disabled={needsRefinement}
               >
                 <span>Go to Dashboard</span>
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </button>
             </div>
 
-            {/* Optional tip for refining */}
-            <p className="text-xs sm:text-sm text-slate-500 text-center mt-4">
-              💡 Tip: Refining your answers now will help us provide better
-              support later
-            </p>
+            {needsRefinement && (
+              <p className="text-xs sm:text-sm text-slate-500 text-center mt-4">
+                💡 You’re missing {missingDocs.length} key document
+                {missingDocs.length > 1 ? "s" : ""}. Refining now helps us guide
+                you better.
+              </p>
+            )}
           </div>
         </div>
       </div>

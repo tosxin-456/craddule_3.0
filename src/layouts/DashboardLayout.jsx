@@ -20,38 +20,66 @@ import logo from "../assets/logo.png";
 import { API_BASE_URL } from "../config/apiConfig";
 
 export default function DashboardLayout() {
-const [sidebarOpen, setSidebarOpen] = useState(false);
-const [tickets, setTickets] = useState([]);
-const [ticketLoading, setTicketLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [ticketLoading, setTicketLoading] = useState(true);
+  const [progress, setProgress] = useState(null);
+  const [progressLoading, setProgressLoading] = useState(true);
 
-const navigate = useNavigate();
-const token = localStorage.getItem("token");
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
-// Fetch tickets for badge
-useEffect(() => {
-  const fetchTickets = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/tickets/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setTickets(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTicketLoading(false);
-    }
+  // Fetch tickets for badge
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/tickets/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setTickets(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setTicketLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, [token]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    sessionStorage.clear();
+    navigate("/login");
   };
 
-  fetchTickets();
-}, [token]);
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json();
+        setProgress(json);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setProgressLoading(false);
+      }
+    };
 
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  sessionStorage.clear();
-  navigate("/login");
-};
+    fetchProgress();
+  }, [token]);
 
+const phases = progress?.phases || [];
+
+const phase1 = phases.find((p) => p.title.includes("Phase 1"));
+const phase2 = phases.find((p) => p.title.includes("Phase 2"));
+const phase3 = phases.find((p) => p.title.includes("Phase 3"));
+
+const phase2Locked = phase2?.status === "Locked";
+const phase3Locked = phase3?.status === "Locked";
 
 
   return (
@@ -132,12 +160,15 @@ const handleLogout = () => {
                 to="/dashboard/strategy"
                 label="Strategy"
                 icon={<TrendingUp className="w-5 h-5" />}
+                locked={phase2Locked}
                 onNavigate={() => setSidebarOpen(false)}
               />
+
               <SidebarLink
                 to="/dashboard/sessions"
                 label="Strategy Sessions"
                 icon={<Calendar className="w-5 h-5" />}
+                locked={phase2Locked}
                 onNavigate={() => setSidebarOpen(false)}
               />
             </div>
@@ -150,6 +181,7 @@ const handleLogout = () => {
                 to="/dashboard/funding"
                 label="Funding"
                 icon={<Rocket className="w-5 h-5" />}
+                locked={phase3Locked}
                 onNavigate={() => setSidebarOpen(false)}
               />
             </div>
@@ -251,15 +283,23 @@ function SectionLabel({ label }) {
   );
 }
 
-function SidebarLink({ to, label, icon, badge, onNavigate }) {
+function SidebarLink({ to, label, icon, badge, onNavigate, locked }) {
   return (
     <NavLink
-      to={to}
+      to={locked ? "#" : to}
       end
-      onClick={onNavigate}
+      onClick={(e) => {
+        if (locked) {
+          e.preventDefault();
+          return;
+        }
+        onNavigate?.();
+      }}
       className={({ isActive }) =>
         `group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 ${
-          isActive
+          locked
+            ? "opacity-50 cursor-not-allowed text-gray-400"
+            : isActive
             ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
             : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
         }`
@@ -270,7 +310,9 @@ function SidebarLink({ to, label, icon, badge, onNavigate }) {
           <div className="flex items-center gap-3 min-w-0">
             <div
               className={`flex-shrink-0 ${
-                isActive
+                locked
+                  ? "text-gray-400"
+                  : isActive
                   ? "text-white"
                   : "text-gray-500 group-hover:text-blue-600"
               } transition-colors`}
@@ -281,7 +323,8 @@ function SidebarLink({ to, label, icon, badge, onNavigate }) {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {badge && (
+            {locked && <span className="text-xs">🔒</span>}
+            {!locked && badge && (
               <span
                 className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                   isActive
@@ -292,7 +335,9 @@ function SidebarLink({ to, label, icon, badge, onNavigate }) {
                 {badge}
               </span>
             )}
-            {isActive && <ChevronRight className="w-4 h-4 text-white" />}
+            {isActive && !locked && (
+              <ChevronRight className="w-4 h-4 text-white" />
+            )}
           </div>
         </>
       )}
