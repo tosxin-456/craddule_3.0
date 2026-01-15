@@ -234,7 +234,6 @@ export default function FounderOnboarding() {
   const submitAll = async () => {
     if (isAnalyzing) return;
 
-    // 🛑 Cancel pending autosave
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
       saveTimeout.current = null;
@@ -254,8 +253,14 @@ export default function FounderOnboarding() {
         throw new Error(data.message || "Submission failed");
       }
 
-      setReview(data.aiReview);
-      setShowReview(true);
+      const status = data.aiReview?.status;
+
+      // 🚦 Gate logic
+      if (status === "ok" || status === "approved") {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/ai-walkthrough", { replace: true });
+      }
     } catch (err) {
       console.error(err);
       toast.error(err.message);

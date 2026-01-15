@@ -51,8 +51,11 @@ export default function LoginPage() {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
       console.log(user);
+
       navigate(
-        user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
+        data.user.onboardingStatus !== "approved"
+          ? "/ai-walkthrough"
+          : "/dashboard"
       );
     } catch (err) {
       setError(err.message);
@@ -105,7 +108,9 @@ export default function LoginPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       navigate(
-        data.user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
+        data.user.onboardingStatus !== "approved"
+          ? "/ai-walkthrough"
+          : "/dashboard"
       );
     } catch (err) {
       setError(err.message);
