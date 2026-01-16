@@ -207,18 +207,27 @@ export default function FounderOnboarding() {
   const fetchLatestReview = async () => {
     try {
       setLoading(true);
+
       const res = await fetch(`${API_BASE_URL}/onboarding/review`, {
         headers: getAuthHeaders()
       });
+
       const data = await res.json();
       setLoading(false);
 
-      if (res.ok) {
-        setReview(data.aiReview);
-        console.log(data.aiReview);
-        setShowReview(true);
-      } else {
+      if (!res.ok) {
         console.error("Failed to fetch review:", data);
+        return;
+      }
+
+      setReview(data.aiReview);
+      setShowReview(true);
+
+      const status = data.aiReview.status; // from API
+      if (status === "needs_fine_tuning") {
+        navigate("/ai-walkthrough", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
       }
     } catch (err) {
       console.error(err);

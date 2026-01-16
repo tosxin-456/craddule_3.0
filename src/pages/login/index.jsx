@@ -54,7 +54,7 @@ export default function LoginPage() {
 
       navigate(
         data.user.onboardingStatus !== "approved"
-          ? "/ai-walkthrough"
+          ? "/onboarding"
           : "/dashboard"
       );
     } catch (err) {
@@ -108,9 +108,7 @@ export default function LoginPage() {
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       navigate(
-        data.user.onboardingStatus !== "approved"
-          ? "/ai-walkthrough"
-          : "/dashboard"
+        data.user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
       );
     } catch (err) {
       setError(err.message);
