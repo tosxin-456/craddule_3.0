@@ -39,7 +39,8 @@ const BUSINESS_SECTORS = [
 const KEY_DOCUMENTS = [
   "Business Model",
   "Executive Summary",
-  "Marketing Plans"
+  "Marketing Plans",
+  "None"
 ];
 
 const questions = [
@@ -125,10 +126,11 @@ export default function FounderOnboarding() {
 
   const maxChars = 500;
   const currentQuestion = questions[currentStep];
+  const currentAnswer = answers[currentStep];
   const progress = showReview
     ? 100
     : ((currentStep + 1) / questions.length) * 100;
-  const canProceed = answers[currentStep]?.trim().length > 0;
+  const canProceed = true;
 
   const saveStep = async (step, answer) => {
     if (isAnalyzing) return true; // 🔒 block autosave during submit
@@ -293,8 +295,10 @@ export default function FounderOnboarding() {
   };
 
   const handleNext = async () => {
-    if (!canProceed) return;
-
+    if (!currentAnswer || currentAnswer.trim().length === 0) {
+      await saveStep(currentStep, "No answer provided");
+      setAnswers({ ...answers, [currentStep]: "No answer provided" });
+    }
     setIsAnimating(true);
     setDirection(1);
 
@@ -767,9 +771,17 @@ export default function FounderOnboarding() {
                                         .split(", ")
                                         .filter(Boolean);
 
-                                  const updated = e.target.checked
-                                    ? [...prev, doc]
-                                    : prev.filter((d) => d !== doc);
+                                  let updated;
+                                  if (doc === "None") {
+                                    updated = e.target.checked ? ["None"] : [];
+                                  } else {
+                                    updated = prev.filter((d) => d !== "None");
+                                    if (e.target.checked) updated.push(doc);
+                                    else
+                                      updated = updated.filter(
+                                        (d) => d !== doc
+                                      );
+                                  }
 
                                   const displayValue = updated.join(", ");
 
@@ -871,17 +883,6 @@ export default function FounderOnboarding() {
                 >
                   <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                   Back
-                </button>
-
-                <button
-                  onClick={handleSkip}
-                  disabled={isSkipping}
-                  className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm text-slate-500 hover:text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSkipping && (
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
-                  )}
-                  <span>{isSkipping ? "Skipping..." : "Skip question"}</span>
                 </button>
               </div>
 
