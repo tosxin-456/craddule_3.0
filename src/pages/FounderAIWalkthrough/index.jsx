@@ -37,19 +37,14 @@ export default function FounderAIWalkthrough() {
   const [activeTab, setActiveTab] = useState("overview");
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content:
-        "Hi! I've reviewed your onboarding responses. Let's refine your business idea together. Tell me about your business in your own words - what are you building and why?"
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
+      setIsTyping(true);
       try {
         const res = await fetch(`${API_BASE_URL}/conversations`, {
           headers: {
@@ -60,6 +55,7 @@ export default function FounderAIWalkthrough() {
         const data = await res.json();
 
         if (data.success && Array.isArray(data.data)) {
+          setIsTyping(false);
           // Format messages
           const formattedMessages = data.data.map((msg) => ({
             role: msg.role === "ai" ? "assistant" : "user",
@@ -82,7 +78,6 @@ export default function FounderAIWalkthrough() {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-
     const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
