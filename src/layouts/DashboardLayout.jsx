@@ -213,6 +213,14 @@ const phase3Locked = phase3?.status === "Locked";
                 onNavigate={() => setSidebarOpen(false)}
               />
             </div>
+            <div>
+              <SidebarLink
+                to="/ai-walkthrough"
+                label="AI Walkthrough"
+                icon={<Sparkles className="w-5 h-5" />}
+                onNavigate={() => setSidebarOpen(false)}
+              />
+            </div>
           </div>
         </nav>
 

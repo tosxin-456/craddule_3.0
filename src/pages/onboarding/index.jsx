@@ -156,7 +156,7 @@ export default function FounderOnboarding() {
       });
 
       const data = await res.json();
-
+      console.log(data);
       if (!res.ok) return;
 
       const hydratedAnswers = {};
@@ -213,6 +213,7 @@ export default function FounderOnboarding() {
       });
 
       const data = await res.json();
+      console.log(data);
       setLoading(false);
 
       if (!res.ok) {
@@ -257,7 +258,7 @@ export default function FounderOnboarding() {
       });
 
       const data = await res.json();
-
+      console.log(data);
       if (!res.ok) {
         throw new Error(data.message || "Submission failed");
       }
@@ -326,6 +327,7 @@ export default function FounderOnboarding() {
     setIsSkipping(true);
 
     const success = await saveStep(currentStep, "No answer provided");
+    console.log(success);
     if (!success) {
       toast.error("Failed to save your skipped answer. Please try again.");
       setIsSkipping(false);
@@ -412,14 +414,14 @@ export default function FounderOnboarding() {
       review.score >= 80
         ? "text-green-600"
         : review.score >= 60
-        ? "text-amber-600"
-        : "text-orange-600";
+          ? "text-amber-600"
+          : "text-orange-600";
     const scoreBgColor =
       review.score >= 80
         ? "from-green-500 to-emerald-500"
         : review.score >= 60
-        ? "from-amber-500 to-orange-500"
-        : "from-orange-500 to-yellow-500";
+          ? "from-amber-500 to-orange-500"
+          : "from-orange-500 to-yellow-500";
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 p-4 sm:p-6 md:p-8 relative overflow-hidden">
@@ -564,7 +566,7 @@ export default function FounderOnboarding() {
                     className="group flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all transform hover:scale-105 active:scale-95"
                   >
                     <Brain className="w-5 h-5" />
-                    <span>Refine with Abby</span>
+                    <span>More Context with Abby</span>
                   </button>
 
                   {/* Explanation */}

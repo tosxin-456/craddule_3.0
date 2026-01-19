@@ -23,6 +23,8 @@ import {
   Home,
   LayoutDashboard
 } from "lucide-react";
+import { Document, Packer, Paragraph, TextRun } from "docx";
+import { saveAs } from "file-saver";
 
 import { API_BASE_URL } from "../../config/apiConfig";
 import ReactMarkdown from "react-markdown";
@@ -33,6 +35,7 @@ import toast from "react-hot-toast";
 export default function FounderAIWalkthrough() {
   const [stage, setStage] = useState("chat");
   const [activeTab, setActiveTab] = useState("overview");
+  const [ready, setReady] = useState(false);
   const navigate = useNavigate();
   const [messages, setMessages] = useState([
     {
@@ -57,12 +60,17 @@ export default function FounderAIWalkthrough() {
         const data = await res.json();
 
         if (data.success && Array.isArray(data.data)) {
+          // Format messages
           const formattedMessages = data.data.map((msg) => ({
             role: msg.role === "ai" ? "assistant" : "user",
             content: msg.content
           }));
+
           console.log(formattedMessages);
           setMessages(formattedMessages);
+
+          // ✅ also set the ready flag
+          setReady(data.ready || false);
         }
       } catch (err) {
         console.error("Failed to fetch messages", err);
@@ -100,6 +108,11 @@ export default function FounderAIWalkthrough() {
         ...prev,
         { role: "assistant", content: data.data.content }
       ]);
+
+      // ✅ backend is the source of truth
+      if (typeof data.ready === "boolean") {
+        setReady(data.ready);
+      }
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
@@ -161,6 +174,7 @@ export default function FounderAIWalkthrough() {
     ]);
     setInput("");
     setAiResult(null);
+    setReady(false); // ✅ important
   };
 
   return (
@@ -174,7 +188,7 @@ export default function FounderAIWalkthrough() {
             sendMessage={sendMessage}
             handleKeyPress={handleKeyPress}
             onGenerate={generateBusinessModel}
-            canGenerate={messages.filter((m) => m.role === "user").length >= 3}
+            canGenerate={ready}
             isTyping={isTyping}
           />
         )}
@@ -353,14 +367,24 @@ function ResultStage({ aiResult, onViewDocument }) {
 
   const [activeTab, setActiveTab] = useState("overview");
   console.log(aiResult);
-  const downloadText = (content, filename) => {
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+
+  const downloadDocx = async (content, filename) => {
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: content.split("\n").map(
+            (line) =>
+              new Paragraph({
+                children: [new TextRun(line)]
+              })
+          )
+        }
+      ]
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, filename.endsWith(".docx") ? filename : `${filename}.docx`);
   };
 
   const downloadBusinessModel = () => {
@@ -403,7 +427,7 @@ Go-To-Market Strategy
 ${businessModel.goToMarket || ""}
 `;
 
-    downloadText(content, "business-model.txt");
+    downloadDocx(content, "business-model.docx");
   };
 
   const downloadMarketingPlan = () => {
@@ -434,16 +458,16 @@ Metrics
 ${marketingPlan.metrics || ""}
 `;
 
-    downloadText(content, "marketing-plan.txt");
+    downloadDocx(content, "marketing-plan.docx");
   };
 
   const downloadSummary = () => {
     if (!summaryDocument?.content) return;
-    downloadText(summaryDocument.content, "startup-summary.md");
+    downloadDocx(summaryDocument.content, "startup-summary.md");
   };
 
   const downloadAll = () => {
-    downloadText(
+    downloadDocx(
       `${summaryDocument?.content || ""}
 
 ${"=".repeat(80)}
@@ -453,7 +477,7 @@ ${businessModel?.problemStatement || ""}
 ${"=".repeat(80)}
 
 ${marketingPlan?.launchStrategy || ""}`,
-      "complete-startup-strategy.txt"
+      "complete-startup-strategy.docx"
     );
   };
 
@@ -490,7 +514,7 @@ ${marketingPlan?.launchStrategy || ""}`,
                 className="flex items-center gap-2 text-indigo-600 font-semibold px-4 py-2 rounded-full hover:bg-indigo-50 hover:text-indigo-800 transition"
               >
                 <LayoutDashboard className="w-5 h-5" />
-                Dashboard
+                Go To Dashboard
               </button>
 
               {/* Download All */}
