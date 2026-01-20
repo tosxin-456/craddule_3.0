@@ -141,7 +141,7 @@ export default function Compliance() {
           <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-sm text-green-700 font-medium">
-              Authorization granted - You can now fill documents
+              Authorization granted - You can now upload documents
             </span>
           </div>
         )}
@@ -196,7 +196,7 @@ export default function Compliance() {
                               className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
                             >
                               <FilePlus className="w-4 h-4" />
-                              Fill Document
+                              Upload Document
                             </button>
                           )}
 
@@ -217,7 +217,7 @@ export default function Compliance() {
         )}
 
         {/* Authorization */}
-        {!authStatus && (
+        {/* {!authStatus && (
           <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 w-full">
               <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-3 shadow-lg">
@@ -240,7 +240,7 @@ export default function Compliance() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Document Modal */}
@@ -314,6 +314,7 @@ function DocumentModal({ item, onClose, onSubmit }) {
   const fileInputRef = useRef(null);
   const firstInputRef = useRef(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+const [documentType, setDocumentType] = useState("");
 
   useEffect(() => {
     // Focus first input on mount

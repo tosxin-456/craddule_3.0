@@ -25,8 +25,9 @@ export default function DocumentsVault() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [newDocument, setNewDocument] = useState({
-    type: "CAC Certificate",
-    fullName: "",
+    complianceId: "", // 🔒 hidden
+    type: "",
+    fullName: "", // 🔒 hidden
     grants: "",
     expiry: "",
     issueDate: "",
@@ -76,7 +77,31 @@ export default function DocumentsVault() {
     }
   };
 
+  const token = localStorage.getItem("token");
+
+  const [complianceItems, setComplianceItems] = useState([]);
+
+  const fetchComplianceItems = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/compliance`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setComplianceItems(data.items);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchComplianceItems();
+
     fetchDocuments();
   }, []);
 
@@ -120,14 +145,17 @@ export default function DocumentsVault() {
       setIsSubmitting(true);
 
       const formData = new FormData();
+
       formData.append("file", selectedFile);
+      formData.append("complianceId", newDocument.complianceId); // ✅
       formData.append("name", newDocument.type);
       formData.append("type", newDocument.type);
-      formData.append("fullName", newDocument.fullName);
+      formData.append("fullName", newDocument.fullName); // ✅
       formData.append("grants", newDocument.grants);
       formData.append("expiryDate", newDocument.expiry || "");
       formData.append("issueDate", newDocument.issueDate);
       formData.append("documentNumber", newDocument.documentNumber);
+
 
       const response = await fetch(`${API_BASE_URL}/documents`, {
         method: "POST",
@@ -435,8 +463,8 @@ export default function DocumentsVault() {
                           currentStatus === "Active"
                             ? "bg-gradient-to-br from-green-50 to-emerald-50 text-green-600"
                             : currentStatus === "Expiring Soon"
-                            ? "bg-gradient-to-br from-amber-50 to-orange-50 text-amber-600"
-                            : "bg-gradient-to-br from-yellow-50 to-rose-50 text-yellow-600"
+                              ? "bg-gradient-to-br from-amber-50 to-orange-50 text-amber-600"
+                              : "bg-gradient-to-br from-yellow-50 to-rose-50 text-yellow-600"
                         }`}
                       >
                         {config.icon}
@@ -557,68 +585,53 @@ export default function DocumentsVault() {
               </div>
 
               <div className="p-6 space-y-4">
+                {/* Document Type */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Document Type *
                   </label>
                   <select
-                    value={newDocument.type}
-                    onChange={(e) =>
-                      setNewDocument({
-                        ...newDocument,
-                        type: e.target.value
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={newDocument.complianceId}
+                    onChange={(e) => {
+                      const selected = complianceItems.find(
+                        (item) => item.id === Number(e.target.value)
+                      );
+
+                      if (!selected) return;
+
+                      setNewDocument((prev) => ({
+                        ...prev,
+                        complianceId: selected.id, // ✅ sent silently
+                        type: selected.title,
+                        fullName: selected.title // ✅ sent silently
+                      }));
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl
+             focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="CAC Certificate">CAC Certificate</option>
-                    <option value="Industry License">Industry License</option>
-                    <option value="Tax Identification Number">
-                      Tax Identification Number
-                    </option>
-                    <option value="Tax Clearance Certificate">
-                      Tax Clearance Certificate
-                    </option>
-                    <option value="Other">Any Other Document</option>
+                    <option value="">Select document type</option>
+                    {complianceItems.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {newDocument.type === "Other" && (
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      Document Name *
-                    </label>
-                    <input
-                      type="text"
-                      onChange={(e) =>
-                        setNewDocument({
-                          ...newDocument,
-                          type: e.target.value
-                        })
-                      }
-                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="e.g., Environmental Permit"
-                    />
-                  </div>
-                )}
-
-                <div>
+                {/* Full Name (Read-only mirror of type) */}
+                {/* <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Full Document Name *
                   </label>
                   <input
                     type="text"
                     value={newDocument.fullName}
-                    onChange={(e) =>
-                      setNewDocument({
-                        ...newDocument,
-                        fullName: e.target.value
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Corporate Affairs Commission Registration"
+                    readOnly
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl bg-slate-100 cursor-not-allowed"
                   />
-                </div>
+                </div> */}
+
+                {/* Upload */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Upload Document File *
@@ -626,7 +639,9 @@ export default function DocumentsVault() {
                   <input
                     type="file"
                     onChange={(e) => setSelectedFile(e.target.files[0])}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                       file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                       file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     accept=".pdf,.jpg,.jpeg,.png"
                   />
                   {selectedFile && (
@@ -636,6 +651,7 @@ export default function DocumentsVault() {
                   )}
                 </div>
 
+                {/* Grants */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     What This Document Grants *
@@ -651,6 +667,7 @@ export default function DocumentsVault() {
                   />
                 </div>
 
+                {/* Dates */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -683,11 +700,11 @@ export default function DocumentsVault() {
                         })
                       }
                       className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Leave empty for perpetual"
                     />
                   </div>
                 </div>
 
+                {/* Document Number */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Document Number *
@@ -706,6 +723,7 @@ export default function DocumentsVault() {
                   />
                 </div>
 
+                {/* Actions */}
                 <div className="flex items-center gap-3 pt-4">
                   <button
                     onClick={handleAddDocument}
