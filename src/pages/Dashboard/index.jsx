@@ -12,12 +12,14 @@ import {
   Shield
 } from "lucide-react";
 import { API_BASE_URL } from "../../config/apiConfig";
+import StartFlowModal from "../../components/StartFlowModal";
 
 export default function DashboardHome() {
   const [data, setData] = useState(null);
 
   const [tickets, setTickets] = useState([]);
   const [ticketLoading, setTicketLoading] = useState(true);
+  const [startFlowOpen, setStartFlowOpen] = useState(false);
 
   useEffect(() => {
     fetchTickets();
@@ -51,6 +53,28 @@ export default function DashboardHome() {
       console.error(err);
     }
   };
+
+  
+  useEffect(() => {
+    const checkModalStatus = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/modal-status`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const data = await res.json();
+
+        // if not seen, open it
+        if (data?.popUpModal === false) {
+          setStartFlowOpen(true);
+        }
+      } catch (err) {
+        console.error("Error checking modal status:", err);
+      }
+    };
+
+    if (token) checkModalStatus();
+  }, [token]);
 
   if (!data) return <p className="p-8">Loading...</p>;
 
@@ -110,8 +134,8 @@ export default function DashboardHome() {
                   phase.title === "Phase 1: Regulatory Compliance"
                     ? "Legal documentation and registration"
                     : phase.title === "Phase 2: Strategy"
-                    ? "Business model and market analysis"
-                    : "Investment readiness and pitch prep"
+                      ? "Business model and market analysis"
+                      : "Investment readiness and pitch prep"
                 }
                 color={phaseColors[phase.title]}
                 isActive={phase.status !== "Locked"}
@@ -180,6 +204,12 @@ export default function DashboardHome() {
             />
           </div>
         </section>
+
+        <StartFlowModal
+          isOpen={startFlowOpen}
+          onClose={() => setStartFlowOpen(false)}
+          token={token}
+        />
 
         {/* Recent Activity */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">

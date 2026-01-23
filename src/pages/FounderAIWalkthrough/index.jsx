@@ -21,7 +21,8 @@ import {
   Shield,
   Eye,
   Home,
-  LayoutDashboard
+  LayoutDashboard,
+  RefreshCw
 } from "lucide-react";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { saveAs } from "file-saver";
@@ -94,7 +95,7 @@ export default function FounderAIWalkthrough() {
       });
 
       const data = await res.json();
-
+      console.log(data);
       if (!data.success) {
         throw new Error(data.message || "Failed to get AI response");
       }

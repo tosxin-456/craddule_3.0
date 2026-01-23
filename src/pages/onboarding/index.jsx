@@ -228,7 +228,8 @@ export default function FounderOnboarding() {
 
       const status = data.aiReview.status; // from API
       if (status === "needs_fine_tuning") {
-        navigate("/ai-walkthrough", { replace: true });
+        // navigate("/ai-walkthrough", { replace: true });
+        navigate("/dashboard", { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
       }
@@ -271,7 +272,9 @@ export default function FounderOnboarding() {
       if (status === "ok" || status === "approved") {
         navigate("/dashboard", { replace: true });
       } else {
-        navigate("/ai-walkthrough", { replace: true });
+        // navigate("/ai-walkthrough", { replace: true });
+        navigate("/dashboard", { replace: true });
+
       }
     } catch (err) {
       console.error(err);
@@ -355,7 +358,8 @@ export default function FounderOnboarding() {
     if (isApproved) {
       navigate("/dashboard");
     } else {
-      navigate("/ai-walkthrough");
+      // navigate("/ai-walkthrough");
+      navigate("/dashboard");
     }
   };
 

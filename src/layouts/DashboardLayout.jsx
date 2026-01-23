@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import { API_BASE_URL } from "../config/apiConfig";
+import StartFlowModal from "../components/StartFlowModal";
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,6 +26,7 @@ export default function DashboardLayout() {
   const [ticketLoading, setTicketLoading] = useState(true);
   const [progress, setProgress] = useState(null);
   const [progressLoading, setProgressLoading] = useState(true);
+
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -47,6 +49,8 @@ export default function DashboardLayout() {
 
     fetchTickets();
   }, [token]);
+
+
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -72,15 +76,14 @@ export default function DashboardLayout() {
     fetchProgress();
   }, [token]);
 
-const phases = progress?.phases || [];
+  const phases = progress?.phases || [];
 
-const phase1 = phases.find((p) => p.title.includes("Phase 1"));
-const phase2 = phases.find((p) => p.title.includes("Phase 2"));
-const phase3 = phases.find((p) => p.title.includes("Phase 3"));
+  const phase1 = phases.find((p) => p.title.includes("Phase 1"));
+  const phase2 = phases.find((p) => p.title.includes("Phase 2"));
+  const phase3 = phases.find((p) => p.title.includes("Phase 3"));
 
-const phase2Locked = phase2?.status === "Locked";
-const phase3Locked = phase3?.status === "Locked";
-
+  const phase2Locked = phase2?.status === "Locked";
+  const phase3Locked = phase3?.status === "Locked";
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -308,8 +311,8 @@ function SidebarLink({ to, label, icon, badge, onNavigate, locked }) {
           locked
             ? "opacity-50 cursor-not-allowed text-gray-400"
             : isActive
-            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
-            : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
+              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
         }`
       }
     >
@@ -321,8 +324,8 @@ function SidebarLink({ to, label, icon, badge, onNavigate, locked }) {
                 locked
                   ? "text-gray-400"
                   : isActive
-                  ? "text-white"
-                  : "text-gray-500 group-hover:text-blue-600"
+                    ? "text-white"
+                    : "text-gray-500 group-hover:text-blue-600"
               } transition-colors`}
             >
               {icon}
