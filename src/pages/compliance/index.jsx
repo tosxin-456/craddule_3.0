@@ -137,14 +137,14 @@ export default function Compliance() {
         </header>
 
         {/* Authorization Status Indicator */}
-        {authStatus && (
+        {/* {authStatus && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-sm text-green-700 font-medium">
               Authorization granted - You can now upload documents
             </span>
           </div>
-        )}
+        )} */}
 
         {/* Compliance Items */}
         {loading ? (
@@ -201,12 +201,12 @@ export default function Compliance() {
                           )}
 
                         {/* Show message if not authorized */}
-                        {!authStatus &&
+                        {/* {!authStatus &&
                           item.complianceStatus === "Not Started" && (
                             <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 italic">
                               Grant authorization below to fill this document
                             </div>
-                          )}
+                          )} */}
                       </div>
                     </div>
                   </div>

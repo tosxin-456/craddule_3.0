@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // import useNavigate
+import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import { API_BASE_URL } from "../../config/apiConfig";
 
@@ -9,20 +9,24 @@ export default function LoginPage() {
     email: "",
     password: ""
   });
+
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false); // (optional use later)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // initialize navigate
+
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value
-    });
+    }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+
     setError("");
     setLoading(true);
 
@@ -32,58 +36,40 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json"
         },
+  
         body: JSON.stringify(formData)
       });
 
       const data = await res.json();
-      console.log("LOGIN RESPONSE:", data);
 
       if (!res.ok) {
-        throw new Error(data.message || "Login failed");
+        throw new Error(data?.message || "Login failed");
       }
 
-      const { token, user } = data.data ?? data;
+      // Supports both: {data:{token,user}} and {token,user}
+      const token = data?.data?.token || data?.token;
+      const user = data?.data?.user || data?.user;
 
-      if (!token) {
-        throw new Error("Token missing from server response");
+      if (!token || !user) {
+        throw new Error("Invalid server response: token/user missing");
       }
 
+      // store token
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
-      console.log(user);
 
+      // navigate correctly
       navigate(
-        data.user.onboardingStatus !== "approved"
-          ? "/onboarding"
-          : "/dashboard"
+        user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
       );
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    /* global google */
-    if (!window.google) return;
-
-    google.accounts.id.initialize({
-      client_id:
-        "652982067595-5ib81dgbepeqevr3868739t1bg4phrmm.apps.googleusercontent.com",
-      callback: handleGoogleResponse
-    });
-
-    google.accounts.id.renderButton(
-      document.getElementById("google-signin-btn"),
-      {
-        theme: "outline",
-        size: "large",
-        width: "100%"
-      }
-    );
-  }, []);
-
+  // GOOGLE LOGIN
   const handleGoogleResponse = async (response) => {
     try {
       setLoading(true);
@@ -94,6 +80,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify({
           idToken: response.credential
         })
@@ -102,20 +89,47 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Google login failed");
+        throw new Error(data?.message || "Google login failed");
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const token = data?.data?.token || data?.token;
+      const user = data?.data?.user || data?.user;
+
+      if (!token || !user) {
+        throw new Error("Invalid server response: token/user missing");
+      }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
       navigate(
-        data.user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
+        user.onboardingStatus !== "approved" ? "/onboarding" : "/dashboard"
       );
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Google login failed");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!window.google) return;
+
+    window.google.accounts.id.initialize({
+      client_id:
+        "652982067595-5ib81dgbepeqevr3868739t1bg4phrmm.apps.googleusercontent.com",
+      callback: handleGoogleResponse
+    });
+
+    window.google.accounts.id.renderButton(
+      document.getElementById("google-signin-btn"),
+      {
+        theme: "outline",
+        size: "large",
+        width: "100%"
+      }
+    );
+  }, []);
 
   return (
     <div className="min-h-screen font-mont flex">
@@ -123,8 +137,8 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="inline-block p-3  rounded-2xl mb-4 ">
-              <img src={logo} className="w-10 h-10 text-white" />
+            <div className="inline-block p-3 rounded-2xl mb-4">
+              <img src={logo} className="w-10 h-10" alt="logo" />
             </div>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               Welcome Back
@@ -143,7 +157,7 @@ export default function LoginPage() {
           <div
             id="google-signin-btn"
             className="w-full mb-6 flex justify-center"
-          ></div>
+          />
 
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px bg-gray-300"></div>
@@ -152,20 +166,21 @@ export default function LoginPage() {
           </div>
 
           {/* Login Form */}
-          <div className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="you@example.com"
+                  required
                 />
               </div>
             </div>
@@ -175,18 +190,20 @@ export default function LoginPage() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-12 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-12 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="••••••••"
+                  required
                 />
                 <button
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -207,34 +224,38 @@ export default function LoginPage() {
                 />
                 <span className="ml-2 text-sm text-gray-700">Remember me</span>
               </label>
-              <a
+
+              <button
+                type="button"
                 onClick={() => navigate("/forgot-password")}
-                className="text-sm text-blue-600 cursor-pointer hover:text-blue-700 font-medium transition-colors"
+                className="text-sm text-blue-600 cursor-pointer hover:text-blue-700 font-medium"
               >
                 Forgot password?
-              </a>
+              </button>
             </div>
 
             <button
-              onClick={handleSubmit}
+              type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 disabled:opacity-50"
             >
-              {loading && (
+              {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                "Sign In"
               )}
-              {!loading && "Sign In"}
             </button>
-          </div>
+          </form>
 
           <p className="text-center text-gray-600 mt-6">
             Don't have an account?{" "}
-            <a
+            <button
+              type="button"
               onClick={() => navigate("/signup")}
-              className="text-blue-600 cursor-pointer font-medium hover:text-blue-700 transition-colors"
+              className="text-blue-600 cursor-pointer font-medium hover:text-blue-700"
             >
               Sign Up
-            </a>
+            </button>
           </p>
 
           <div className="mt-8 pt-6 border-t border-gray-200">
@@ -244,7 +265,8 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-      {/* /* Right Side - Image  */}
+
+      {/* Right Side */}
       <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=1200&q=80"
