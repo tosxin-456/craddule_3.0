@@ -137,14 +137,14 @@ export default function Compliance() {
         </header>
 
         {/* Authorization Status Indicator */}
-        {/* {authStatus && (
+        {authStatus && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-sm text-green-700 font-medium">
               Authorization granted - You can now upload documents
             </span>
           </div>
-        )} */}
+        )}
 
         {/* Compliance Items */}
         {loading ? (
@@ -201,12 +201,12 @@ export default function Compliance() {
                           )}
 
                         {/* Show message if not authorized */}
-                        {/* {!authStatus &&
+                        {!authStatus &&
                           item.complianceStatus === "Not Started" && (
                             <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 italic">
                               Grant authorization below to fill this document
                             </div>
-                          )} */}
+                          )}
                       </div>
                     </div>
                   </div>
@@ -217,7 +217,7 @@ export default function Compliance() {
         )}
 
         {/* Authorization */}
-        {/* {!authStatus && (
+        {!authStatus && (
           <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 w-full">
               <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-3 shadow-lg">
@@ -240,7 +240,7 @@ export default function Compliance() {
               </div>
             </div>
           </div>
-        )} */}
+        )}
       </div>
 
       {/* Document Modal */}
@@ -730,7 +730,7 @@ function AuthorizationModal({ onClose, onSuccess }) {
 
   const handleGrant = async () => {
     if (!agreed) {
-      toast.error("Please agree to the terms");
+      toast.error("You must agree to the terms to proceed.");
       return;
     }
 
@@ -762,54 +762,101 @@ function AuthorizationModal({ onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full">
-        <div className="p-4 sm:p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-blue-100 rounded-lg p-2">
-              <Shield className="w-6 h-6 text-blue-600" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-              Grant Processing Authorization
-            </h2>
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-3 p-4 sm:p-6 border-b border-slate-200">
+          <div className="bg-blue-100 rounded-lg p-2">
+            <Shield className="w-6 h-6 text-blue-600" />
           </div>
-          <p className="text-slate-600 text-sm sm:text-base">
-            By granting authorization, you allow Craddule to submit compliance
-            documents and communicate with regulatory bodies on your behalf.
-          </p>
-          <div className="bg-slate-50 rounded-lg p-3 sm:p-4 mt-3 sm:mt-4">
-            <label className="flex items-start gap-2 sm:gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="mt-0.5 sm:mt-1 w-4 h-4 flex-shrink-0"
-              />
-              <span className="text-xs sm:text-sm text-slate-700">
-                I authorize Craddule to act as my representative for regulatory
-                compliance processing and understand I can revoke this at any
-                time.
-              </span>
-            </label>
-          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+            Grant Regulatory Authorization
+          </h2>
         </div>
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-b-xl sm:rounded-b-2xl">
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm sm:text-base font-medium disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleGrant}
-            disabled={!agreed || loading}
-            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium flex items-center justify-center gap-2"
-          >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loading ? "Granting..." : "Grant Authorization"}
-          </button>
+
+        {/* Scrollable Document */}
+        <div className="overflow-y-auto p-4 sm:p-6 text-slate-800 text-sm sm:text-base leading-relaxed space-y-4 max-h-[60vh]">
+          <p>
+            I, the undersigned, hereby grant Craddule Limited (“Craddule”), a
+            duly registered company, full authorization to act as my
+            representative for all matters pertaining to regulatory compliance.
+            This includes, but is not limited to, the preparation, submission,
+            management, and follow-up of all required documentation for
+            governmental and regulatory authorities. I understand that Craddule
+            may communicate directly with relevant regulatory bodies, agencies,
+            or departments in my name for the purpose of completing, clarifying,
+            or verifying compliance documentation.
+          </p>
+          <p>
+            I acknowledge that Craddule will act diligently and in accordance
+            with all applicable laws and regulations, but I remain responsible
+            for the accuracy and completeness of any information or documents
+            provided. I agree to supply all necessary information in a timely
+            and truthful manner to enable Craddule to carry out its
+            responsibilities effectively.
+          </p>
+          <p>
+            I understand that this authorization is voluntary and may be revoked
+            at any time. Revocation must be made in writing and submitted to
+            Craddule. Until such revocation is received, Craddule is authorized
+            to act on my behalf, and any actions taken within the scope of this
+            authorization shall be considered valid and binding.
+          </p>
+          <p>
+            I understand that this authorization does not relieve me of any
+            legal or regulatory obligations and that I remain responsible for
+            ensuring that all submissions made under my authorization comply
+            with applicable laws. I also acknowledge that Craddule may retain
+            copies of submitted documents, correspondence, and records for
+            auditing, reporting, and compliance purposes.
+          </p>
+          <p>
+            By checking the box below, I confirm that I have read this
+            authorization statement in full, understand all the terms and
+            conditions outlined herein, and voluntarily consent to allow
+            Craddule to act as my authorized representative for all matters
+            related to regulatory compliance. I acknowledge that I may revoke
+            this authorization at any time and that such revocation will
+            terminate Craddule’s authority upon receipt of written notice.
+          </p>
+        </div>
+
+        {/* Checkbox & Action */}
+        <div className="border-t border-slate-200 p-4 sm:p-6 bg-slate-50 rounded-b-xl sm:rounded-b-2xl flex flex-col gap-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-1 w-4 h-4 flex-shrink-0"
+            />
+            <span className="text-sm sm:text-base text-slate-800 leading-relaxed">
+              I have read, understood, and agree to all terms stated above. I
+              hereby grant Craddule permission to act on my behalf for
+              regulatory compliance purposes and understand that I may revoke
+              this authorization at any time in writing.
+            </span>
+          </label>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 mt-2">
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm sm:text-base font-medium disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleGrant}
+              disabled={!agreed || loading}
+              className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium flex items-center justify-center gap-2"
+            >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? "Granting..." : "Grant Authorization"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
