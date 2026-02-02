@@ -11,7 +11,8 @@ import {
   Lightbulb,
   TrendingUp,
   RefreshCw,
-  Home
+  Home,
+  Plus
 } from "lucide-react";
 import { API_BASE_URL } from "../../config/apiConfig";
 import { useNavigate } from "react-router-dom";
@@ -28,11 +29,32 @@ const BUSINESS_SECTORS = [
   "Proptech",
   "Legaltech",
   "Insurtech",
-  "Media & Entertainment",
+  "Media & entertainment",
   "Manufacturing",
-  "Energy & Climate",
-  "Travel & Hospitality",
+  "Energy & climate",
+  "Travel & hospitality",
   "Retail",
+  "Agriculture & food production",
+  "All industries",
+  "Automotive & repair services",
+  "Construction & real estate",
+  "Creative, media & entertainment",
+  "Education & training",
+  "Energy",
+  "Financial services",
+  "Health adjacent (not full healthcare)",
+  "Healthcare & pharmaceuticals",
+  "Home-based & digital microbusinesses",
+  "Hospitality micro-segments",
+  "Informal trade & street commerce",
+  "Manufacturing",
+  "Personal services & lifestyle businesses",
+  "Religious, social & community organisations",
+  "Retail & consumer goods",
+  "Technology",
+  "Telecommunications & media",
+  "Trades & skilled crafts",
+  "Transportation & logistics",
   "Other"
 ];
 
@@ -120,6 +142,23 @@ export default function FounderOnboarding() {
   const [review, setReview] = useState(null);
   const [isSkipping, setIsSkipping] = useState(false);
   const [isOtherSector, setIsOtherSector] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedSector, setSelectedSector] = useState(
+    answers[currentStep] || ""
+  );
+
+  // Filtered sectors based on search
+  const filteredSectors = BUSINESS_SECTORS.filter((sector) =>
+    sector.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Check if search input is a custom sector (not in the predefined list)
+  const isCustomSector =
+    search.trim() &&
+    !BUSINESS_SECTORS.some(
+      (sector) => sector.toLowerCase() === search.toLowerCase()
+    );
 
   const navigate = useNavigate();
   useEffect(() => setMounted(true), []);
@@ -183,6 +222,11 @@ export default function FounderOnboarding() {
       ) {
         setIsOtherSector(true);
       }
+
+      // Set search to saved answer if on sector question
+      if (hydratedAnswers[sectorStepIndex]) {
+        setSearch(hydratedAnswers[sectorStepIndex]);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -244,6 +288,17 @@ export default function FounderOnboarding() {
     fetchSavedAnswers();
   }, []);
 
+  // Update search when navigating to sector question
+  useEffect(() => {
+    const sectorStepIndex = questions.findIndex((q) =>
+      q.label.includes("sector")
+    );
+
+    if (currentStep === sectorStepIndex && answers[currentStep]) {
+      setSearch(answers[currentStep]);
+    }
+  }, [currentStep]);
+
   const submitAll = async () => {
     if (isAnalyzing) return;
 
@@ -274,7 +329,6 @@ export default function FounderOnboarding() {
       } else {
         // navigate("/ai-walkthrough", { replace: true });
         navigate("/dashboard", { replace: true });
-
       }
     } catch (err) {
       console.error(err);
@@ -362,7 +416,7 @@ export default function FounderOnboarding() {
       navigate("/dashboard");
     }
   };
-
+  // console.log(currentQuestion);
   const isSectorQuestion =
     currentQuestion.label === "Which sector or industry is your business in?";
 
@@ -579,7 +633,7 @@ export default function FounderOnboarding() {
 
                   {/* Explanation */}
                   <p className="text-xs sm:text-sm text-slate-600 text-center">
-                    💡 You’re missing{" "}
+                    💡 You're missing{" "}
                     <span className="font-semibold">{missingDocs.length}</span>{" "}
                     required document{missingDocs.length > 1 ? "s" : ""}. To
                     continue, you need to refine and create these documents with
@@ -691,34 +745,105 @@ export default function FounderOnboarding() {
 
                   {isSectorQuestion ? (
                     <>
-                      <select
-                        value={answers[currentStep] || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={search}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSearch(value);
+                            setShowDropdown(true);
 
-                          setAnswers({ ...answers, [currentStep]: value });
-                          saveStep(currentStep, value);
+                            // Auto-save custom sector as user types
+                            if (value.trim()) {
+                              setAnswers({
+                                ...answers,
+                                [currentStep]: value
+                              });
 
-                          setIsOtherSector(value === "Other");
-                        }}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                        className={`relative w-full rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:outline-none transition-all bg-white/50 backdrop-blur-sm ${
-                          isFocused
-                            ? "border-blue-400 shadow-xl ring-2 sm:ring-4 ring-blue-100"
-                            : "border-slate-200 hover:border-slate-300 shadow-lg"
-                        }`}
-                      >
-                        <option value="" disabled>
-                          Select a business sector
-                        </option>
+                              // Clear any existing timeout
+                              clearTimeout(saveTimeout.current);
 
-                        {BUSINESS_SECTORS.map((sector) => (
-                          <option key={sector} value={sector}>
-                            {sector}
-                          </option>
-                        ))}
-                      </select>
+                              // Set new timeout for autosave
+                              saveTimeout.current = setTimeout(() => {
+                                saveStep(currentStep, value);
+                              }, 800);
+                            }
+                          }}
+                          onFocus={() => {
+                            setIsFocused(true);
+                            setShowDropdown(true);
+                          }}
+                          onBlur={() => {
+                            setIsFocused(false);
+                            // Delay to allow click on dropdown item
+                            setTimeout(() => setShowDropdown(false), 200);
+                          }}
+                          placeholder="Search or type your business sector..."
+                          className={`relative w-full rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:outline-none transition-all bg-white/50 backdrop-blur-sm ${
+                            isFocused
+                              ? "border-blue-400 shadow-xl ring-2 sm:ring-4 ring-blue-100"
+                              : "border-slate-200 hover:border-slate-300 shadow-lg"
+                          }`}
+                        />
+
+                        {/* Dropdown */}
+                        {showDropdown &&
+                          (filteredSectors.length > 0 || isCustomSector) && (
+                            <div className="absolute z-10 w-full mt-2 max-h-60 overflow-y-auto bg-white border-2 border-slate-200 rounded-xl shadow-xl">
+                              {/* Show custom sector option if it doesn't match any existing */}
+                              {isCustomSector && (
+                                <div
+                                  onClick={() => {
+                                    setAnswers({
+                                      ...answers,
+                                      [currentStep]: search
+                                    });
+                                    saveStep(currentStep, search);
+                                    setShowDropdown(false);
+                                  }}
+                                  className="px-4 py-3 hover:bg-green-50 cursor-pointer transition-colors text-sm sm:text-base text-green-700 hover:text-green-900 border-b-2 border-green-100 font-medium flex items-center gap-2"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  Create "{search}" as custom sector
+                                </div>
+                              )}
+
+                              {/* Show filtered predefined sectors */}
+                              {filteredSectors.map((sector) => (
+                                <div
+                                  key={sector}
+                                  onClick={() => {
+                                    setSearch(sector);
+                                    setSelectedSector(sector);
+                                    setAnswers({
+                                      ...answers,
+                                      [currentStep]: sector
+                                    });
+                                    saveStep(currentStep, sector);
+                                    setIsOtherSector(sector === "Other");
+                                    setShowDropdown(false);
+                                  }}
+                                  className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors text-sm sm:text-base text-slate-700 hover:text-blue-900"
+                                >
+                                  {sector}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+
+                      {/* Selected sector display */}
+                      {answers[currentStep] && !showDropdown && (
+                        <div className="mt-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                          <p className="text-xs text-slate-500 font-medium mb-1">
+                            Selected sector:
+                          </p>
+                          <p className="text-sm text-blue-900 font-semibold">
+                            {answers[currentStep]}
+                          </p>
+                        </div>
+                      )}
 
                       {isOtherSector && (
                         <input
@@ -893,7 +1018,7 @@ export default function FounderOnboarding() {
               <button
                 onClick={handleNext}
                 disabled={!canProceed}
-                className="group relative flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4rounded-xl sm:rounded-2xl font-bold text-white transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none overflow-hidden shadow-xl"
+                className="group relative flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-white transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none overflow-hidden shadow-xl"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600" />
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />

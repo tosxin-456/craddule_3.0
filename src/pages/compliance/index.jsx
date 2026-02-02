@@ -167,8 +167,8 @@ export default function Compliance() {
                       item.status === "Completed"
                         ? "bg-gradient-to-br from-green-50 to-emerald-50 text-green-600"
                         : item.status === "Pending"
-                        ? "bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600"
-                        : "bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600"
+                          ? "bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600"
+                          : "bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600"
                     }`}
                   >
                     {item.icon || <FileText className="w-5 h-5" />}
@@ -314,7 +314,7 @@ function DocumentModal({ item, onClose, onSubmit }) {
   const fileInputRef = useRef(null);
   const firstInputRef = useRef(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-const [documentType, setDocumentType] = useState("");
+  const [documentType, setDocumentType] = useState("");
 
   useEffect(() => {
     // Focus first input on mount
@@ -472,7 +472,7 @@ const [documentType, setDocumentType] = useState("");
       }
     } catch (err) {
       toast.error("Submission failed");
-      console.log(err)
+      console.log(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -769,54 +769,36 @@ function AuthorizationModal({ onClose, onSuccess }) {
             <Shield className="w-6 h-6 text-blue-600" />
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Grant Regulatory Authorization
+            Authorization, Consent, and Electronic Acceptance
           </h2>
         </div>
 
         {/* Scrollable Document */}
         <div className="overflow-y-auto p-4 sm:p-6 text-slate-800 text-sm sm:text-base leading-relaxed space-y-4 max-h-[60vh]">
           <p>
-            I, the undersigned, hereby grant Craddule Limited (“Craddule”), a
-            duly registered company, full authorization to act as my
-            representative for all matters pertaining to regulatory compliance.
-            This includes, but is not limited to, the preparation, submission,
-            management, and follow-up of all required documentation for
-            governmental and regulatory authorities. I understand that Craddule
-            may communicate directly with relevant regulatory bodies, agencies,
-            or departments in my name for the purpose of completing, clarifying,
-            or verifying compliance documentation.
+            By accessing this website and submitting any information or
+            documents, you hereby authorize Craddule to collect, store, process,
+            and manage your documents through its document portal.
           </p>
+
           <p>
-            I acknowledge that Craddule will act diligently and in accordance
-            with all applicable laws and regulations, but I remain responsible
-            for the accuracy and completeness of any information or documents
-            provided. I agree to supply all necessary information in a timely
-            and truthful manner to enable Craddule to carry out its
-            responsibilities effectively.
+            You further grant Craddule the authority to act on your behalf,
+            where applicable, for the purpose of preparing, submitting, and
+            processing applications for licenses, permits, and related
+            administrative requirements.
           </p>
+
           <p>
-            I understand that this authorization is voluntary and may be revoked
-            at any time. Revocation must be made in writing and submitted to
-            Craddule. Until such revocation is received, Craddule is authorized
-            to act on my behalf, and any actions taken within the scope of this
-            authorization shall be considered valid and binding.
+            All data and documents shall be processed in accordance with
+            applicable Nigerian laws and regulations, including relevant data
+            protection and privacy legislation.
           </p>
+
           <p>
-            I understand that this authorization does not relieve me of any
-            legal or regulatory obligations and that I remain responsible for
-            ensuring that all submissions made under my authorization comply
-            with applicable laws. I also acknowledge that Craddule may retain
-            copies of submitted documents, correspondence, and records for
-            auditing, reporting, and compliance purposes.
-          </p>
-          <p>
-            By checking the box below, I confirm that I have read this
-            authorization statement in full, understand all the terms and
-            conditions outlined herein, and voluntarily consent to allow
-            Craddule to act as my authorized representative for all matters
-            related to regulatory compliance. I acknowledge that I may revoke
-            this authorization at any time and that such revocation will
-            terminate Craddule’s authority upon receipt of written notice.
+            By selecting the checkbox below and proceeding, you confirm that you
+            have read and understood this authorization, agree to its terms, and
+            acknowledge that your electronic acceptance constitutes a legally
+            binding agreement equivalent to a handwritten signature.
           </p>
         </div>
 
@@ -830,10 +812,7 @@ function AuthorizationModal({ onClose, onSuccess }) {
               className="mt-1 w-4 h-4 flex-shrink-0"
             />
             <span className="text-sm sm:text-base text-slate-800 leading-relaxed">
-              I have read, understood, and agree to all terms stated above. I
-              hereby grant Craddule permission to act on my behalf for
-              regulatory compliance purposes and understand that I may revoke
-              this authorization at any time in writing.
+              I agree to the Authorization and Consent terms above.
             </span>
           </label>
 
@@ -845,6 +824,7 @@ function AuthorizationModal({ onClose, onSuccess }) {
             >
               Cancel
             </button>
+
             <button
               onClick={handleGrant}
               disabled={!agreed || loading}
@@ -859,4 +839,3 @@ function AuthorizationModal({ onClose, onSuccess }) {
     </div>
   );
 }
-

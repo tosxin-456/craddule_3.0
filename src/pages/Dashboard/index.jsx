@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "../../config/apiConfig";
 import StartFlowModal from "../../components/StartFlowModal";
+import { DocumentSelectionModal } from "../../components/DocumentSelection";
 
 export default function DashboardHome() {
   const [data, setData] = useState(null);
@@ -54,7 +55,6 @@ export default function DashboardHome() {
     }
   };
 
-  
   useEffect(() => {
     const checkModalStatus = async () => {
       try {
@@ -114,7 +114,7 @@ export default function DashboardHome() {
           </p>
         </div>
       </div>
-
+      <DocumentSelectionModal />
       <div className="px-8 py-8 space-y-8 max-w-7xl mx-auto">
         {/* Progress Overview */}
         <section>
