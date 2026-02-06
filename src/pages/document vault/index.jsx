@@ -383,7 +383,7 @@ ${plan.metrics || ""}
     const { businessModel } = aiResult;
 
     const handleExport = () => {
-      alert("PDF export functionality would be implemented here");
+      toast.error("PDF export functionality would be implemented here");
     };
 
     const handleDashboard = () => {
@@ -410,13 +410,13 @@ ${plan.metrics || ""}
               </p>
             </div>
           </div>
-          <button
+          {/* <button
             onClick={handleExport}
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl hover:from-indigo-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg text-sm font-semibold transform hover:scale-105"
           >
             <Download className="w-4 h-4" />
             Export PDF
-          </button>
+          </button> */}
         </div>
 
         <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-10 border-2 border-slate-200 shadow-inner space-y-8">

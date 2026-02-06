@@ -114,7 +114,9 @@ export default function DashboardHome() {
           </p>
         </div>
       </div>
-      <DocumentSelectionModal />
+      <div className="w-fit m-auto">
+        <DocumentSelectionModal />
+      </div>
       <div className="px-8 py-8 space-y-8 max-w-7xl mx-auto">
         {/* Progress Overview */}
         <section>

@@ -14,7 +14,7 @@ import {
   ExternalLink
 } from "lucide-react";
 
-// ================= REUSABLE COMPONENTS (OUTSIDE MAIN COMPONENT) =================
+// ================= REUSABLE COMPONENTS =================
 const Input = ({
   label,
   name,
@@ -106,11 +106,12 @@ const FileUpload = ({
   description,
   onChange,
   fileName,
-  fileUrl
+  fileUrl,
+  required = false
 }) => (
   <div>
     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-      {label}
+      {label} {required && <span className="text-red-500">*</span>}
     </label>
     <div className="relative">
       <input
@@ -119,7 +120,7 @@ const FileUpload = ({
         onChange={onChange}
         className="hidden"
         id={name}
-        accept="image/*"
+        accept="image/*,.pdf"
       />
       <label
         htmlFor={name}
@@ -127,7 +128,7 @@ const FileUpload = ({
       >
         <Upload className="w-5 h-5 text-slate-400" />
         <span className="text-sm text-slate-600">
-          {fileName || "Choose image to upload"}
+          {fileName || "Choose file to upload"}
         </span>
       </label>
     </div>
@@ -149,6 +150,8 @@ const FileUpload = ({
 );
 
 const SCUMLApplicationSummary = ({ application, onViewFull }) => {
+  const [loading, setLoading] = useState(false);
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "approved":
@@ -175,6 +178,58 @@ const SCUMLApplicationSummary = ({ application, onViewFull }) => {
     }
   };
 
+  const isApprovedWithPayment =
+    application.status?.toLowerCase() === "approved" && application.price > 0;
+
+  const handlePay = () => {
+    const token = localStorage.getItem("token");
+    if (!token) return toast.error("You must be logged in to make a payment.");
+
+    setLoading(true);
+
+    const reference = `SCUML-${application.id}-${Date.now()}`;
+
+    const handler = window.PaystackPop.setup({
+      key: "pk_test_326283a4813bb26a9b6372c90c393ea21a46aff4",
+      email: application.email || "customer@example.com",
+      amount: application.price * 100,
+      ref: reference,
+      callback: function (response) {
+        (async () => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/payment/verify`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                reference: response.reference,
+                type: "scuml",
+                verified: true,
+                applicationId: application.id,
+                amount: application.price
+              })
+            });
+
+            const data = await res.json();
+            if (data.success) toast.success("Payment recorded successfully!");
+            else toast.error("Failed to record payment.");
+          } catch (err) {
+            console.error(err);
+            toast.error("Error saving payment.");
+          }
+        })();
+      },
+      onClose: () => {
+        toast.error("Payment window closed.");
+        setLoading(false);
+      }
+    });
+
+    handler.openIframe();
+  };
+
   return (
     <div className="p-6 bg-white rounded-xl border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between mb-4">
@@ -185,7 +240,9 @@ const SCUMLApplicationSummary = ({ application, onViewFull }) => {
           </h3>
         </div>
         <span
-          className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(application.status)}`}
+          className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+            application.status
+          )}`}
         >
           {getStatusIcon(application.status)}{" "}
           {application.status?.charAt(0).toUpperCase() +
@@ -196,20 +253,41 @@ const SCUMLApplicationSummary = ({ application, onViewFull }) => {
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs text-gray-500 mb-1">Cooperative Name</p>
+            <p className="text-xs text-gray-500 mb-1">Business Name</p>
             <p className="text-sm font-medium text-gray-900">
-              {application.cooperativeName || "N/A"}
+              {application.businessName || "N/A"}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-1">Cooperative Type</p>
+            <p className="text-xs text-gray-500 mb-1">Business Category</p>
             <p className="text-sm font-medium text-gray-900">
-              {application.cooperativeType || "N/A"}
+              {application.businessCategory || "N/A"}
             </p>
           </div>
         </div>
 
-        {application.adminFeedback && (
+        {isApprovedWithPayment && !application.isPaid && (
+          <div className="mt-4 p-4 bg-emerald-50 rounded-lg border-2 border-emerald-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">🎉</span>
+              <p className="text-sm font-semibold text-emerald-900">
+                Application Approved!
+              </p>
+            </div>
+            <p className="text-sm text-emerald-800 mb-2">
+              Your SCUML registration has been approved. Please proceed with
+              payment to complete the registration.
+            </p>
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className="text-xs text-emerald-700">Amount:</span>
+              <span className="text-2xl font-bold text-emerald-900">
+                ₦{application.price.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {application.adminFeedback && !isApprovedWithPayment && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-xs text-blue-700 font-medium mb-1">
               Admin Feedback
@@ -219,12 +297,40 @@ const SCUMLApplicationSummary = ({ application, onViewFull }) => {
         )}
       </div>
 
-      <button
-        onClick={onViewFull}
-        className="mt-4 w-full px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow hover:shadow-md"
-      >
-        View Full Application
-      </button>
+      {isApprovedWithPayment ? (
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onViewFull}
+            className="flex-1 px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-all"
+          >
+            View Details
+          </button>
+
+          {application.isPaid ? (
+            <button
+              disabled
+              className="flex-1 px-4 py-2 rounded-lg bg-gray-300 text-white text-sm font-medium cursor-not-allowed"
+            >
+              Paid ✅
+            </button>
+          ) : (
+            <button
+              onClick={handlePay}
+              disabled={loading}
+              className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Processing..." : "Pay Now"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={onViewFull}
+          className="mt-4 w-full px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow hover:shadow-md"
+        >
+          View Full Application
+        </button>
+      )}
     </div>
   );
 };
@@ -232,84 +338,45 @@ const SCUMLApplicationSummary = ({ application, onViewFull }) => {
 // ================= MAIN COMPONENT =================
 export function ScumlComplianceForm() {
   const [formData, setFormData] = useState({
-    registrationType: "",
-    cooperativeType: "",
+    // 1. Business Identification
+    businessName: "",
+    rcNumber: "",
+    bnNumber: "",
+    tin: "",
+    dateOfIncorporation: "",
+    businessCategory: "",
 
-    // Cooperative Details
-    cooperativeName: "",
-    alternativeName: "",
-    registeredAddress: "",
-    contactAddress: "",
-    stateOfOperation: "",
-    lgaOfOperation: "",
-    dateOfFormation: "",
-    membershipSize: "",
-    sharesValue: "",
-    entranceFee: "",
+    // 2. Contact Information
+    registeredOfficeAddress: "",
+    branchOfficeAddress: "",
+    email: "",
+    phoneNumber: "",
 
-    // Contact Information
-    cooperativeEmail: "",
-    cooperativePhone: "",
-    websiteUrl: "",
+    // 3. Ownership & Management
+    directors: [],
+    bankers: "",
 
-    // Leadership
-    president: "",
-    vicePresident: "",
-    secretary: "",
-    treasurer: "",
+    // 4. Compliance Officer Details
+    complianceOfficerName: "",
+    complianceOfficerDesignation: "",
+    complianceOfficerPhone: "",
+    complianceOfficerEmail: "",
 
-    // Objectives and Activities
-    mainObjectives: "",
-    businessActivities: "",
-    sourceOfFunds: "",
-    projectedAnnualTurnover: "",
-
-    // Members
-    members: [],
-
-    // Executive Committee
-    executiveCommittee: [],
-
-    // Board of Directors/Trustees
-    boardMembers: [],
-
-    // Supervisory Committee
-    supervisoryCommittee: [],
-
-    // Bank Details
-    bankName: "",
-    accountNumber: "",
-    accountName: "",
-
-    // Registration Details
-    previousRegistration: "",
-    previousRegNumber: "",
-    affiliatedUnion: "",
-    affiliatedFederation: "",
-
-    // Documents
-    constitution: null,
-    minutesOfFormation: null,
-    membersList: null,
-    financialStatement: null,
-    businessPlan: null,
-    utilityBill: null,
-    cacCertificate: null,
-    taxClearance: null,
-    passportPhotos: null,
-    affidavit: null,
+    // 5. Required Documents
+    certificateOfIncorporation: null,
+    cacForm1_1: null,
+    memart: null,
+    tinPrintout: null,
+    professionalCertificate: null,
+    companyProfile: null,
 
     // Document URLs
-    constitutionUrl: "",
-    minutesOfFormationUrl: "",
-    membersListUrl: "",
-    financialStatementUrl: "",
-    businessPlanUrl: "",
-    utilityBillUrl: "",
-    cacCertificateUrl: "",
-    taxClearanceUrl: "",
-    passportPhotosUrl: "",
-    affidavitUrl: ""
+    certificateOfIncorporationUrl: "",
+    cacForm1_1Url: "",
+    memartUrl: "",
+    tinPrintoutUrl: "",
+    professionalCertificateUrl: "",
+    companyProfileUrl: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -320,21 +387,9 @@ export function ScumlComplianceForm() {
 
   const token = localStorage.getItem("token");
 
-  const parseJsonSafe = (str) => {
-    if (!str) return [];
-    try {
-      const parsed = JSON.parse(str);
-      // Sometimes it's double stringified
-      return Array.isArray(parsed) ? parsed : JSON.parse(parsed);
-    } catch {
-      return [];
-    }
-  };
-
   useEffect(() => {
     setFetching(true);
 
-    // Safe parser for fields that can be array or JSON string
     const parseJsonSafe = (field) => {
       if (!field) return [];
       if (Array.isArray(field)) return field;
@@ -355,33 +410,23 @@ export function ScumlComplianceForm() {
         if (!text) throw new Error("Empty response from server");
 
         const data = JSON.parse(text);
-        console.log(data);
 
         if (data.success && data.application) {
           const app = data.application;
-          console.log(app);
-
           setHasApplication(true);
           setApplicationData(app);
 
           setFormData({
             ...app,
-            members: parseJsonSafe(app.members),
-            executiveCommittee: parseJsonSafe(app.executiveCommittee),
-            boardMembers: parseJsonSafe(app.boardMembers),
-            supervisoryCommittee: parseJsonSafe(app.supervisoryCommittee),
+            directors: parseJsonSafe(app.directors),
 
             // Keep file URLs
-            constitutionUrl: app.constitution || "",
-            minutesOfFormationUrl: app.minutesOfFormation || "",
-            membersListUrl: app.membersList || "",
-            financialStatementUrl: app.financialStatement || "",
-            businessPlanUrl: app.businessPlan || "",
-            utilityBillUrl: app.utilityBill || "",
-            cacCertificateUrl: app.cacCertificate || "",
-            taxClearanceUrl: app.taxClearance || "",
-            passportPhotosUrl: app.passportPhotos || "",
-            affidavitUrl: app.affidavit || ""
+            certificateOfIncorporationUrl: app.certificateOfIncorporation || "",
+            cacForm1_1Url: app.cacForm1_1 || "",
+            memartUrl: app.memart || "",
+            tinPrintoutUrl: app.tinPrintout || "",
+            professionalCertificateUrl: app.professionalCertificate || "",
+            companyProfileUrl: app.companyProfile || ""
           });
         }
       } catch (err) {
@@ -408,10 +453,15 @@ export function ScumlComplianceForm() {
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (files && files[0]) {
-      // Validate that it's an image
       const file = files[0];
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please upload only image files");
+      const validTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "application/pdf"
+      ];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Please upload only image or PDF files");
         return;
       }
       setFormData((prev) => ({ ...prev, [name]: file }));
@@ -437,20 +487,31 @@ export function ScumlComplianceForm() {
   };
 
   const handleSubmit = async () => {
-    // Validation
-    if (!formData.registrationType) {
-      toast.error("Please select a registration type");
+    // ================= VALIDATION =================
+    const requiredFields = [
+      "businessName",
+      "tin",
+      "dateOfIncorporation",
+      "businessCategory",
+      "registeredOfficeAddress",
+      "bankers",
+      "complianceOfficerName",
+      "complianceOfficerDesignation",
+      "complianceOfficerPhone",
+      "complianceOfficerEmail"
+    ];
+
+    // RC Number or BN Number check
+    if (!formData.rcNumber && !formData.bnNumber) {
+      toast.error("RC Number or BN Number is required");
       return;
     }
 
-    if (!formData.cooperativeType) {
-      toast.error("Please select cooperative type");
-      return;
-    }
-
-    if (!formData.cooperativeName) {
-      toast.error("Cooperative name is required");
-      return;
+    for (const field of requiredFields) {
+      if (!formData[field] || formData[field].toString().trim() === "") {
+        toast.error(`${field.replace(/([A-Z])/g, " $1")} is required`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -458,13 +519,18 @@ export function ScumlComplianceForm() {
       const body = new FormData();
 
       for (const key in formData) {
-        if (Array.isArray(formData[key])) {
+        // JSON stringify arrays or objects
+        if (Array.isArray(formData[key]) || typeof formData[key] === "object") {
           body.append(key, JSON.stringify(formData[key]));
-        } else if (formData[key] instanceof File) {
+        }
+        // File inputs
+        else if (formData[key] instanceof File) {
           body.append(key, formData[key]);
-        } else if (!key.endsWith("Url")) {
-          // Don't send URL fields back
-          body.append(key, formData[key] || "");
+        }
+        // Regular string/number fields
+        else if (!key.endsWith("Url")) {
+          const value = formData[key] === "" ? null : formData[key];
+          body.append(key, value);
         }
       }
 
@@ -478,7 +544,6 @@ export function ScumlComplianceForm() {
       if (data.success) {
         toast.success("SCUML application saved successfully!");
         handleClose();
-        // Refresh the application data
         window.location.reload();
       } else {
         toast.error(data.message || "Failed to save SCUML application");
@@ -490,62 +555,6 @@ export function ScumlComplianceForm() {
       setLoading(false);
     }
   };
-
-  const shouldShowSection = (section) => {
-    const { registrationType, cooperativeType } = formData;
-
-    const sectionMap = {
-      cooperative: true,
-      members: true,
-      executive: true,
-      board: cooperativeType !== "Primary Society",
-      supervisory: true,
-      leadership: true,
-      objectives: true
-    };
-
-    return sectionMap[section] || false;
-  };
-
-  const nigerianStates = [
-    "Abia",
-    "Adamawa",
-    "Akwa Ibom",
-    "Anambra",
-    "Bauchi",
-    "Bayelsa",
-    "Benue",
-    "Borno",
-    "Cross River",
-    "Delta",
-    "Ebonyi",
-    "Edo",
-    "Ekiti",
-    "Enugu",
-    "FCT",
-    "Gombe",
-    "Imo",
-    "Jigawa",
-    "Kaduna",
-    "Kano",
-    "Katsina",
-    "Kebbi",
-    "Kogi",
-    "Kwara",
-    "Lagos",
-    "Nasarawa",
-    "Niger",
-    "Ogun",
-    "Ondo",
-    "Osun",
-    "Oyo",
-    "Plateau",
-    "Rivers",
-    "Sokoto",
-    "Taraba",
-    "Yobe",
-    "Zamfara"
-  ];
 
   return (
     <>
@@ -582,8 +591,7 @@ export function ScumlComplianceForm() {
                   SCUML Registration Form
                 </h3>
                 <p className="text-sm text-slate-600 mt-1">
-                  Special Control Unit Against Money Laundering - Cooperative
-                  Registration
+                  Special Control Unit Against Money Laundering
                 </p>
               </div>
               <button
@@ -606,830 +614,470 @@ export function ScumlComplianceForm() {
                 </div>
               ) : (
                 <div className="space-y-8">
-                  {/* Registration Type Selection */}
+                  {/* 1. Business Identification */}
                   <section className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
-                    <div className="flex items-start gap-3 mb-4">
+                    <div className="flex items-start gap-3 mb-6">
                       <div className="p-2 bg-purple-600 rounded-lg">
-                        <FileText className="w-5 h-5 text-white" />
+                        <Building2 className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <h4 className="text-lg font-bold text-slate-900">
-                          Registration Information
+                          1. Business Identification
                         </h4>
                         <p className="text-sm text-slate-600">
-                          Select the type of cooperative registration
+                          Provide your business registration details
                         </p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Select
-                        label="Registration Type"
-                        name="registrationType"
+                      <Input
+                        label="Business Name"
+                        name="businessName"
+                        placeholder="Full registered business name"
                         required
-                        value={formData.registrationType}
+                        className="md:col-span-2"
+                        value={formData.businessName}
                         onChange={handleChange}
-                        options={[
-                          { value: "", label: "Select Registration Type" },
-                          {
-                            value: "New Registration",
-                            label: "New Cooperative Registration"
-                          },
-                          {
-                            value: "Re-registration",
-                            label: "Re-registration"
-                          },
-                          {
-                            value: "Amendment",
-                            label: "Amendment of Constitution"
-                          },
-                          { value: "Change of Name", label: "Change of Name" }
-                        ]}
+                      />
+
+                      <Input
+                        label="RC Number"
+                        name="rcNumber"
+                        placeholder="CAC Registration Number"
+                        value={formData.rcNumber}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="BN Number"
+                        name="bnNumber"
+                        placeholder="Business Name Number"
+                        value={formData.bnNumber}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Tax Identification Number (TIN)"
+                        name="tin"
+                        placeholder="Enter TIN"
+                        required
+                        value={formData.tin}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Date of Incorporation"
+                        name="dateOfIncorporation"
+                        type="date"
+                        required
+                        value={formData.dateOfIncorporation}
+                        onChange={handleChange}
                       />
 
                       <Select
-                        label="Cooperative Type"
-                        name="cooperativeType"
+                        label="Business Category"
+                        name="businessCategory"
                         required
-                        value={formData.cooperativeType}
+                        className="md:col-span-2"
+                        value={formData.businessCategory}
                         onChange={handleChange}
                         options={[
-                          { value: "", label: "Select Cooperative Type" },
+                          { value: "", label: "Select Business Category" },
+                          { value: "Real Estate", label: "Real Estate" },
+                          { value: "Car Dealers", label: "Car Dealers" },
                           {
-                            value: "Primary Society",
-                            label: "Primary Cooperative Society"
+                            value: "NGOs",
+                            label: "NGOs (Non-Governmental Organizations)"
+                          },
+                          { value: "Law Firms", label: "Law Firms" },
+                          {
+                            value: "Accounting Firms",
+                            label: "Accounting Firms"
                           },
                           {
-                            value: "Cooperative Union",
-                            label: "Cooperative Union"
+                            value: "Jewelry Dealers",
+                            label: "Jewelry Dealers"
+                          },
+                          { value: "Casinos", label: "Casinos/Gaming" },
+                          {
+                            value: "Money Service Business",
+                            label: "Money Service Business"
                           },
                           {
-                            value: "Cooperative Federation",
-                            label: "Cooperative Federation"
+                            value: "Trust and Company Service Providers",
+                            label: "Trust and Company Service Providers"
                           },
                           {
-                            value: "Thrift & Credit",
-                            label: "Thrift & Credit Society"
+                            value: "Dealers in Precious Metals",
+                            label: "Dealers in Precious Metals"
                           },
                           {
-                            value: "Multipurpose",
-                            label: "Multipurpose Cooperative"
+                            value: "Dealers in Precious Stones",
+                            label: "Dealers in Precious Stones"
                           },
-                          { value: "Producer", label: "Producer Cooperative" },
-                          { value: "Consumer", label: "Consumer Cooperative" },
-                          { value: "Housing", label: "Housing Cooperative" },
-                          {
-                            value: "Transport",
-                            label: "Transport Cooperative"
-                          },
-                          {
-                            value: "Agricultural",
-                            label: "Agricultural Cooperative"
-                          }
+                          { value: "Other", label: "Other" }
                         ]}
                       />
                     </div>
-
-                    {formData.registrationType && formData.cooperativeType && (
-                      <div className="mt-4 p-4 bg-white rounded-lg border border-purple-200">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm">
-                            <p className="font-semibold text-slate-900 mb-1">
-                              {formData.registrationType} -{" "}
-                              {formData.cooperativeType}
-                            </p>
-                            <p className="text-slate-600">
-                              {formData.cooperativeType === "Primary Society" &&
-                                "Primary cooperative societies are formed by at least 10 individuals with common economic interests."}
-                              {formData.cooperativeType ===
-                                "Cooperative Union" &&
-                                "Cooperative unions are formed by at least 5 registered primary societies."}
-                              {formData.cooperativeType ===
-                                "Cooperative Federation" &&
-                                "Cooperative federations are formed by at least 3 registered cooperative unions."}
-                              {![
-                                "Primary Society",
-                                "Cooperative Union",
-                                "Cooperative Federation"
-                              ].includes(formData.cooperativeType) &&
-                                "Please ensure all required documents and information are provided for registration."}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </section>
 
-                  {formData.cooperativeType && (
-                    <>
-                      {/* ================= COOPERATIVE DETAILS ================= */}
-                      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-3 mb-6">
-                          <div className="p-2 bg-emerald-100 rounded-lg">
-                            <Building2 className="w-5 h-5 text-emerald-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-slate-900">
-                              Cooperative Details
-                            </h4>
-                            <p className="text-sm text-slate-600">
-                              Provide basic information about the cooperative
-                            </p>
-                          </div>
+                  {/* 2. Contact Information */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3 mb-6">
+                      <div className="p-2 bg-emerald-100 rounded-lg">
+                        <FileText className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-900">
+                          2. Contact Information
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          Business location and contact details
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <TextArea
+                        label="Registered Office Address"
+                        name="registeredOfficeAddress"
+                        placeholder="Physical location of business (P.O. Box not accepted)"
+                        required
+                        value={formData.registeredOfficeAddress}
+                        onChange={handleChange}
+                      />
+
+                      <TextArea
+                        label="Branch Office Address"
+                        name="branchOfficeAddress"
+                        placeholder="If you have more than one location"
+                        value={formData.branchOfficeAddress}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Email Address"
+                        name="email"
+                        type="email"
+                        placeholder="official@business.com"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Phone Number"
+                        name="phoneNumber"
+                        type="tel"
+                        placeholder="Reachable phone number"
+                        required
+                        value={formData.phoneNumber}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </section>
+
+                  {/* 3. Ownership & Management */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Users className="w-5 h-5 text-blue-600" />
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                            label="Cooperative Name (1st Choice)"
-                            name="cooperativeName"
-                            placeholder="Enter primary name choice"
-                            required
-                            className="md:col-span-2"
-                            value={formData.cooperativeName}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Alternative Name (2nd Choice)"
-                            name="alternativeName"
-                            placeholder="Enter alternative name"
-                            value={formData.alternativeName}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Date of Formation"
-                            name="dateOfFormation"
-                            type="date"
-                            required
-                            value={formData.dateOfFormation}
-                            onChange={handleChange}
-                          />
-
-                          <TextArea
-                            label="Registered Office Address"
-                            name="registeredAddress"
-                            placeholder="Enter complete registered address"
-                            required
-                            value={formData.registeredAddress}
-                            onChange={handleChange}
-                          />
-
-                          <TextArea
-                            label="Contact/Correspondence Address"
-                            name="contactAddress"
-                            placeholder="Enter contact address"
-                            value={formData.contactAddress}
-                            onChange={handleChange}
-                          />
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <Select
-                              label="State of Operation"
-                              name="stateOfOperation"
-                              required
-                              value={formData.stateOfOperation}
-                              onChange={handleChange}
-                              options={[
-                                { value: "", label: "Select State" },
-                                ...nigerianStates.map((state) => ({
-                                  value: state,
-                                  label: state
-                                }))
-                              ]}
-                            />
-
-                            <Input
-                              label="LGA of Operation"
-                              name="lgaOfOperation"
-                              placeholder="Enter LGA"
-                              required
-                              value={formData.lgaOfOperation}
-                              onChange={handleChange}
-                            />
-                          </div>
-
-                          <Input
-                            label="Membership Size"
-                            name="membershipSize"
-                            type="number"
-                            placeholder="Total number of members"
-                            required
-                            value={formData.membershipSize}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Value of Shares (NGN)"
-                            name="sharesValue"
-                            type="number"
-                            placeholder="Nominal value per share"
-                            required
-                            value={formData.sharesValue}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Entrance Fee (NGN)"
-                            name="entranceFee"
-                            type="number"
-                            placeholder="Entrance fee amount"
-                            value={formData.entranceFee}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Projected Annual Turnover (NGN)"
-                            name="projectedAnnualTurnover"
-                            type="number"
-                            placeholder="Estimated annual turnover"
-                            value={formData.projectedAnnualTurnover}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Cooperative Email"
-                            name="cooperativeEmail"
-                            type="email"
-                            placeholder="cooperative@example.com"
-                            required
-                            value={formData.cooperativeEmail}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Cooperative Phone"
-                            name="cooperativePhone"
-                            type="tel"
-                            placeholder="Contact phone number"
-                            required
-                            value={formData.cooperativePhone}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Website URL (if any)"
-                            name="websiteUrl"
-                            type="url"
-                            placeholder="https://www.example.com"
-                            className="md:col-span-2"
-                            value={formData.websiteUrl}
-                            onChange={handleChange}
-                          />
+                        <div>
+                          <h4 className="text-lg font-bold text-slate-900">
+                            3. Ownership & Management
+                          </h4>
+                          <p className="text-sm text-slate-600">
+                            Directors/Proprietors particulars
+                          </p>
                         </div>
-                      </section>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addArrayItem("directors")}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Director
+                      </button>
+                    </div>
 
-                      {/* ================= OBJECTIVES & ACTIVITIES ================= */}
-                      {shouldShowSection("objectives") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start gap-3 mb-6">
-                            <div className="p-2 bg-blue-100 rounded-lg">
-                              <FileText className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900">
-                                Objectives & Activities
-                              </h4>
-                              <p className="text-sm text-slate-600">
-                                Define the cooperative's purpose and operations
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-4">
-                            <TextArea
-                              label="Main Objectives"
-                              name="mainObjectives"
-                              placeholder="Describe the main objectives of the cooperative"
-                              rows={4}
-                              required
-                              value={formData.mainObjectives}
-                              onChange={handleChange}
-                            />
-
-                            <TextArea
-                              label="Business Activities"
-                              name="businessActivities"
-                              placeholder="Describe the business activities and operations"
-                              rows={4}
-                              required
-                              value={formData.businessActivities}
-                              onChange={handleChange}
-                            />
-
-                            <TextArea
-                              label="Source of Funds"
-                              name="sourceOfFunds"
-                              placeholder="Describe sources of funds (member contributions, loans, grants, etc.)"
-                              rows={3}
-                              value={formData.sourceOfFunds}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </section>
-                      )}
-
-                      {/* ================= LEADERSHIP POSITIONS ================= */}
-                      {shouldShowSection("leadership") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start gap-3 mb-6">
-                            <div className="p-2 bg-indigo-100 rounded-lg">
-                              <Users className="w-5 h-5 text-indigo-600" />
-                            </div>
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900">
-                                Leadership Positions
-                              </h4>
-                              <p className="text-sm text-slate-600">
-                                Key officers of the cooperative
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                              label="President/Chairman"
-                              name="president"
-                              placeholder="Full name of President/Chairman"
-                              required
-                              value={formData.president}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Vice President/Vice Chairman"
-                              name="vicePresident"
-                              placeholder="Full name of Vice President"
-                              value={formData.vicePresident}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Secretary"
-                              name="secretary"
-                              placeholder="Full name of Secretary"
-                              required
-                              value={formData.secretary}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Treasurer"
-                              name="treasurer"
-                              placeholder="Full name of Treasurer"
-                              required
-                              value={formData.treasurer}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </section>
-                      )}
-
-                      {/* ================= MEMBERS ================= */}
-                      {shouldShowSection("members") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-start gap-3">
-                              <div className="p-2 bg-teal-100 rounded-lg">
-                                <Users className="w-5 h-5 text-teal-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-lg font-bold text-slate-900">
-                                  Members
-                                </h4>
-                                <p className="text-sm text-slate-600">
-                                  Add cooperative members (minimum 10 for
-                                  Primary Society)
-                                </p>
-                              </div>
-                            </div>
+                    {(formData.directors || []).length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg">
+                        <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p>
+                          No directors added yet. Click "Add Director" to get
+                          started.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {formData.directors.map((director, index) => (
+                          <div
+                            key={index}
+                            className="border-2 border-slate-200 rounded-xl p-5 bg-slate-50 relative"
+                          >
                             <button
                               type="button"
-                              onClick={() => addArrayItem("members")}
-                              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all text-sm font-medium"
+                              onClick={() =>
+                                removeArrayItem("directors", index)
+                              }
+                              className="absolute top-4 right-4 p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
                             >
-                              <Plus className="w-4 h-4" />
-                              Add Member
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                          </div>
 
-                          {(formData.members || []).length === 0 ? (
-                            <div className="text-center py-8 text-slate-500">
-                              <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                              <p>
-                                No members added yet. Click "Add Member" to get
-                                started.
-                              </p>
+                            <h5 className="font-semibold text-slate-700 mb-4">
+                              Director/Proprietor {index + 1}
+                            </h5>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <input
+                                type="text"
+                                placeholder="Full Name *"
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                value={director.fullName || ""}
+                                onChange={(e) =>
+                                  handleArrayChange(
+                                    "directors",
+                                    index,
+                                    "fullName",
+                                    e.target.value
+                                  )
+                                }
+                              />
+
+                              <input
+                                type="text"
+                                placeholder="Address *"
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                value={director.address || ""}
+                                onChange={(e) =>
+                                  handleArrayChange(
+                                    "directors",
+                                    index,
+                                    "address",
+                                    e.target.value
+                                  )
+                                }
+                              />
+
+                              <input
+                                type="text"
+                                placeholder="Nationality *"
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                value={director.nationality || ""}
+                                onChange={(e) =>
+                                  handleArrayChange(
+                                    "directors",
+                                    index,
+                                    "nationality",
+                                    e.target.value
+                                  )
+                                }
+                              />
+
+                              <select
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                value={director.idType || ""}
+                                onChange={(e) =>
+                                  handleArrayChange(
+                                    "directors",
+                                    index,
+                                    "idType",
+                                    e.target.value
+                                  )
+                                }
+                              >
+                                <option value="">Select ID Type *</option>
+                                <option value="International Passport">
+                                  International Passport
+                                </option>
+                                <option value="Driver's License">
+                                  Driver's License
+                                </option>
+                                <option value="National ID Card">
+                                  National ID Card
+                                </option>
+                                <option value="Voter's Card">
+                                  Voter's Card
+                                </option>
+                              </select>
+
+                              <input
+                                type="text"
+                                placeholder="ID Number *"
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white md:col-span-2"
+                                value={director.idNumber || ""}
+                                onChange={(e) =>
+                                  handleArrayChange(
+                                    "directors",
+                                    index,
+                                    "idNumber",
+                                    e.target.value
+                                  )
+                                }
+                              />
                             </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {formData.members.map((member, index) => (
-                                <div
-                                  key={index}
-                                  className="border-2 border-slate-200 rounded-xl p-5 bg-slate-50 relative hover:border-teal-300 transition-all"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeArrayItem("members", index)
-                                    }
-                                    className="absolute top-4 right-4 p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
-                                    title="Remove"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-
-                                  <h5 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
-                                    <span className="w-6 h-6 bg-teal-600 text-white rounded-full flex items-center justify-center text-xs">
-                                      {index + 1}
-                                    </span>
-                                    Member {index + 1}
-                                  </h5>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <input
-                                      type="text"
-                                      placeholder="Full Name *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.fullName || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "fullName",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="email"
-                                      placeholder="Email Address"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.email || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "email",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="tel"
-                                      placeholder="Phone Number *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.phoneNumber || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "phoneNumber",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="date"
-                                      placeholder="Date of Birth"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.dob || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "dob",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <select
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.gender || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "gender",
-                                          e.target.value
-                                        )
-                                      }
-                                    >
-                                      <option value="">Select Gender</option>
-                                      <option value="Male">Male</option>
-                                      <option value="Female">Female</option>
-                                    </select>
-
-                                    <input
-                                      type="text"
-                                      placeholder="Occupation"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.occupation || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "occupation",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="Address *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white md:col-span-2"
-                                      value={member.address || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "address",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="NIN (National ID Number)"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.nin || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "nin",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="number"
-                                      placeholder="Number of Shares"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={member.numberOfShares || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "members",
-                                          index,
-                                          "numberOfShares",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {(formData.members || []).length > 0 && (
-                            <div className="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
-                              <p className="text-sm text-teal-900">
-                                <strong>Total Members:</strong>{" "}
-                                {formData.members.length}
-                                {formData.cooperativeType ===
-                                  "Primary Society" &&
-                                  formData.members.length < 10 && (
-                                    <span className="text-amber-700 ml-2">
-                                      (Minimum 10 required)
-                                    </span>
-                                  )}
-                              </p>
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* Continue with executive committee, board members, supervisory committee sections... */}
-                      {/* Apply the same pattern: all inputs with value/onChange props */}
-
-                      {/* ================= REGISTRATION DETAILS ================= */}
-                      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-3 mb-6">
-                          <div className="p-2 bg-amber-100 rounded-lg">
-                            <FileText className="w-5 h-5 text-amber-600" />
                           </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-slate-900">
-                              Registration Details
-                            </h4>
-                            <p className="text-sm text-slate-600">
-                              Previous registration and affiliation information
-                            </p>
-                          </div>
-                        </div>
+                        ))}
+                      </div>
+                    )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Select
-                            label="Previously Registered?"
-                            name="previousRegistration"
-                            value={formData.previousRegistration}
-                            onChange={handleChange}
-                            options={[
-                              { value: "", label: "Select Option" },
-                              { value: "Yes", label: "Yes" },
-                              { value: "No", label: "No" }
-                            ]}
-                          />
+                    <div className="mt-6">
+                      <Input
+                        label="Bankers"
+                        name="bankers"
+                        placeholder="Names of banks where business maintains accounts"
+                        required
+                        value={formData.bankers}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </section>
 
-                          {formData.previousRegistration === "Yes" && (
-                            <Input
-                              label="Previous Registration Number"
-                              name="previousRegNumber"
-                              placeholder="Enter previous reg number"
-                              value={formData.previousRegNumber}
-                              onChange={handleChange}
-                            />
-                          )}
+                  {/* 4. Compliance Officer Details */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3 mb-6">
+                      <div className="p-2 bg-indigo-100 rounded-lg">
+                        <Shield className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-900">
+                          4. Compliance Officer Details
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          Designated compliance officer information
+                        </p>
+                      </div>
+                    </div>
 
-                          <Input
-                            label="Affiliated Union (if any)"
-                            name="affiliatedUnion"
-                            placeholder="Name of affiliated union"
-                            value={formData.affiliatedUnion}
-                            onChange={handleChange}
-                          />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="Compliance Officer Name"
+                        name="complianceOfficerName"
+                        placeholder="Full name"
+                        required
+                        value={formData.complianceOfficerName}
+                        onChange={handleChange}
+                      />
 
-                          <Input
-                            label="Affiliated Federation (if any)"
-                            name="affiliatedFederation"
-                            placeholder="Name of affiliated federation"
-                            value={formData.affiliatedFederation}
-                            onChange={handleChange}
-                          />
-                        </div>
-                      </section>
+                      <Input
+                        label="Designation/Position"
+                        name="complianceOfficerDesignation"
+                        placeholder="Position within company"
+                        required
+                        value={formData.complianceOfficerDesignation}
+                        onChange={handleChange}
+                      />
 
-                      {/* ================= BANK DETAILS ================= */}
-                      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-3 mb-6">
-                          <div className="p-2 bg-rose-100 rounded-lg">
-                            <FileText className="w-5 h-5 text-rose-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-slate-900">
-                              Bank Details
-                            </h4>
-                            <p className="text-sm text-slate-600">
-                              Cooperative bank account information
-                            </p>
-                          </div>
-                        </div>
+                      <Input
+                        label="Direct Phone Number"
+                        name="complianceOfficerPhone"
+                        type="tel"
+                        placeholder="Direct contact number"
+                        required
+                        value={formData.complianceOfficerPhone}
+                        onChange={handleChange}
+                      />
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <Input
-                            label="Bank Name"
-                            name="bankName"
-                            placeholder="Enter bank name"
-                            required
-                            value={formData.bankName}
-                            onChange={handleChange}
-                          />
+                      <Input
+                        label="Email Address"
+                        name="complianceOfficerEmail"
+                        type="email"
+                        placeholder="officer@business.com"
+                        required
+                        value={formData.complianceOfficerEmail}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </section>
 
-                          <Input
-                            label="Account Number"
-                            name="accountNumber"
-                            placeholder="Enter account number"
-                            required
-                            value={formData.accountNumber}
-                            onChange={handleChange}
-                          />
+                  {/* 5. Required Documents */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3 mb-6">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <FileText className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-900">
+                          5. Required Documents
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          Upload all necessary documents (PDF or JPEG format)
+                        </p>
+                      </div>
+                    </div>
 
-                          <Input
-                            label="Account Name"
-                            name="accountName"
-                            placeholder="Enter account name"
-                            required
-                            value={formData.accountName}
-                            onChange={handleChange}
-                          />
-                        </div>
-                      </section>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FileUpload
+                        label="Certificate of Incorporation"
+                        name="certificateOfIncorporation"
+                        description="Issued by CAC"
+                        required
+                        onChange={handleChange}
+                        fileName={formData.certificateOfIncorporation?.name}
+                        fileUrl={formData.certificateOfIncorporationUrl}
+                      />
 
-                      {/* ================= DOCUMENT UPLOADS ================= */}
-                      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-3 mb-6">
-                          <div className="p-2 bg-orange-100 rounded-lg">
-                            <FileText className="w-5 h-5 text-orange-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-slate-900">
-                              Supporting Documents
-                            </h4>
-                            <p className="text-sm text-slate-600">
-                              Upload required documents (images only)
-                            </p>
-                          </div>
-                        </div>
+                      <FileUpload
+                        label="Form CAC 1.1"
+                        name="cacForm1_1"
+                        description="Application for registration"
+                        required
+                        onChange={handleChange}
+                        fileName={formData.cacForm1_1?.name}
+                        fileUrl={formData.cacForm1_1Url}
+                      />
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FileUpload
-                            label="Cooperative Constitution *"
-                            name="constitution"
-                            description="Constitution/Bye-laws of the cooperative (image)"
-                            onChange={handleChange}
-                            fileName={formData.constitution?.name}
-                            fileUrl={formData.constitutionUrl}
-                          />
+                      <FileUpload
+                        label="Memorandum and Articles of Association"
+                        name="memart"
+                        description="MEMART for limited liability companies"
+                        required
+                        onChange={handleChange}
+                        fileName={formData.memart?.name}
+                        fileUrl={formData.memartUrl}
+                      />
 
-                          <FileUpload
-                            label="Minutes of Formation Meeting *"
-                            name="minutesOfFormation"
-                            description="Minutes of the formation/inaugural meeting (image)"
-                            onChange={handleChange}
-                            fileName={formData.minutesOfFormation?.name}
-                            fileUrl={formData.minutesOfFormationUrl}
-                          />
+                      <FileUpload
+                        label="TIN Printout"
+                        name="tinPrintout"
+                        description="Certificate or printout from FIRS portal"
+                        required
+                        onChange={handleChange}
+                        fileName={formData.tinPrintout?.name}
+                        fileUrl={formData.tinPrintoutUrl}
+                      />
 
-                          <FileUpload
-                            label="Members List *"
-                            name="membersList"
-                            description="Complete list of members with signatures (image)"
-                            onChange={handleChange}
-                            fileName={formData.membersList?.name}
-                            fileUrl={formData.membersListUrl}
-                          />
+                      <FileUpload
+                        label="Professional Certificate"
+                        name="professionalCertificate"
+                        description="If applicable (Call to Bar, Accounting certificate, etc.)"
+                        onChange={handleChange}
+                        fileName={formData.professionalCertificate?.name}
+                        fileUrl={formData.professionalCertificateUrl}
+                      />
 
-                          <FileUpload
-                            label="Financial Statement"
-                            name="financialStatement"
-                            description="Audited financial statement (image, if applicable)"
-                            onChange={handleChange}
-                            fileName={formData.financialStatement?.name}
-                            fileUrl={formData.financialStatementUrl}
-                          />
-
-                          <FileUpload
-                            label="Business Plan"
-                            name="businessPlan"
-                            description="Detailed business plan (image)"
-                            onChange={handleChange}
-                            fileName={formData.businessPlan?.name}
-                            fileUrl={formData.businessPlanUrl}
-                          />
-
-                          <FileUpload
-                            label="Utility Bill"
-                            name="utilityBill"
-                            description="Proof of registered address (image)"
-                            onChange={handleChange}
-                            fileName={formData.utilityBill?.name}
-                            fileUrl={formData.utilityBillUrl}
-                          />
-
-                          <FileUpload
-                            label="CAC Certificate"
-                            name="cacCertificate"
-                            description="Certificate of incorporation (image, if registered with CAC)"
-                            onChange={handleChange}
-                            fileName={formData.cacCertificate?.name}
-                            fileUrl={formData.cacCertificateUrl}
-                          />
-
-                          <FileUpload
-                            label="Tax Clearance"
-                            name="taxClearance"
-                            description="Tax clearance certificate (image)"
-                            onChange={handleChange}
-                            fileName={formData.taxClearance?.name}
-                            fileUrl={formData.taxClearanceUrl}
-                          />
-
-                          <FileUpload
-                            label="Passport Photographs"
-                            name="passportPhotos"
-                            description="Passport photos of all executive members (image)"
-                            onChange={handleChange}
-                            fileName={formData.passportPhotos?.name}
-                            fileUrl={formData.passportPhotosUrl}
-                          />
-
-                          <FileUpload
-                            label="Affidavit/Statutory Declaration"
-                            name="affidavit"
-                            description="Sworn affidavit from officers (image)"
-                            onChange={handleChange}
-                            fileName={formData.affidavit?.name}
-                            fileUrl={formData.affidavitUrl}
-                          />
-                        </div>
-                      </section>
-                    </>
-                  )}
+                      <FileUpload
+                        label="Company Profile"
+                        name="companyProfile"
+                        description="Brief document outlining business activities"
+                        required
+                        onChange={handleChange}
+                        fileName={formData.companyProfile?.name}
+                        fileUrl={formData.companyProfileUrl}
+                      />
+                    </div>
+                  </section>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            {!fetching && formData.cooperativeType && (
+            {!fetching && (
               <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
                 <button
                   type="button"

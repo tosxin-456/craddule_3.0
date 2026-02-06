@@ -13,7 +13,7 @@ import {
   ExternalLink
 } from "lucide-react";
 
-// ================= REUSABLE COMPONENTS (OUTSIDE MAIN COMPONENT) =================
+// ================= REUSABLE COMPONENTS =================
 const Input = ({
   label,
   name,
@@ -148,6 +148,8 @@ const FileUpload = ({
 );
 
 const FIRSApplicationSummary = ({ application, onViewFull }) => {
+  const [loading, setLoading] = useState(false);
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "approved":
@@ -174,6 +176,58 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
     }
   };
 
+  const isApprovedWithPayment =
+    application.status?.toLowerCase() === "approved" && application.price > 0;
+
+  const handlePay = () => {
+    const token = localStorage.getItem("token");
+    if (!token) return toast.error("You must be logged in to make a payment.");
+
+    setLoading(true);
+
+    const reference = `FIRS-${application.id}-${Date.now()}`;
+
+    const handler = window.PaystackPop.setup({
+      key: "pk_test_326283a4813bb26a9b6372c90c393ea21a46aff4",
+      email: application.businessEmail || "customer@example.com",
+      amount: application.price * 100,
+      ref: reference,
+      callback: function (response) {
+        (async () => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/payment/verify`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                reference: response.reference,
+                type: "firs",
+                verified: true,
+                applicationId: application.id,
+                amount: application.price
+              })
+            });
+
+            const data = await res.json();
+            if (data.success) toast.success("Payment recorded successfully!");
+            else toast.error("Failed to record payment.");
+          } catch (err) {
+            console.error(err);
+            toast.error("Error saving payment.");
+          }
+        })();
+      },
+      onClose: () => {
+        toast.error("Payment window closed.");
+        setLoading(false);
+      }
+    });
+
+    handler.openIframe();
+  };
+
   return (
     <div className="p-6 bg-white rounded-xl border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between mb-4">
@@ -184,7 +238,9 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
           </h3>
         </div>
         <span
-          className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(application.status)}`}
+          className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+            application.status
+          )}`}
         >
           {getStatusIcon(application.status)}{" "}
           {application.status?.charAt(0).toUpperCase() +
@@ -195,24 +251,41 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs text-gray-500 mb-1">
-              Business/Individual Name
-            </p>
+            <p className="text-xs text-gray-500 mb-1">Company Name</p>
             <p className="text-sm font-medium text-gray-900">
-              {application.businessName ||
-                `${application.firstName || ""} ${application.lastName || ""}` ||
-                "N/A"}
+              {application.taxpayerName || "N/A"}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-1">Registration Type</p>
+            <p className="text-xs text-gray-500 mb-1">RC Number</p>
             <p className="text-sm font-medium text-gray-900">
-              {application.registrationType || "N/A"}
+              {application.rcNumber || "N/A"}
             </p>
           </div>
         </div>
 
-        {application.adminFeedback && (
+        {isApprovedWithPayment && !application.isPaid && (
+          <div className="mt-4 p-4 bg-emerald-50 rounded-lg border-2 border-emerald-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">🎉</span>
+              <p className="text-sm font-semibold text-emerald-900">
+                Application Approved!
+              </p>
+            </div>
+            <p className="text-sm text-emerald-800 mb-2">
+              Your FIRS tax registration has been approved. Please proceed with
+              payment to complete the process.
+            </p>
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className="text-xs text-emerald-700">Amount:</span>
+              <span className="text-2xl font-bold text-emerald-900">
+                ₦{application.price.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {application.adminFeedback && !isApprovedWithPayment && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-xs text-blue-700 font-medium mb-1">
               Admin Feedback
@@ -222,12 +295,40 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
         )}
       </div>
 
-      <button
-        onClick={onViewFull}
-        className="mt-4 w-full px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow hover:shadow-md"
-      >
-        View Full Application
-      </button>
+      {isApprovedWithPayment ? (
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onViewFull}
+            className="flex-1 px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-all"
+          >
+            View Details
+          </button>
+
+          {application.isPaid ? (
+            <button
+              disabled
+              className="flex-1 px-4 py-2 rounded-lg bg-gray-300 text-white text-sm font-medium cursor-not-allowed"
+            >
+              Paid ✅
+            </button>
+          ) : (
+            <button
+              onClick={handlePay}
+              disabled={loading}
+              className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Processing..." : "Pay Now"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={onViewFull}
+          className="mt-4 w-full px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow hover:shadow-md"
+        >
+          View Full Application
+        </button>
+      )}
     </div>
   );
 };
@@ -235,70 +336,45 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
 // ================= MAIN COMPONENT =================
 export function FirsComplianceForm() {
   const [formData, setFormData] = useState({
-    registrationType: "",
-    taxPayerType: "",
-    businessName: "",
+    // Section 1: Company Identification
+    taxpayerName: "",
     rcNumber: "",
-    businessAddress: "",
-    businessEmail: "",
-    businessPhone: "",
     dateOfIncorporation: "",
+    registeredOfficeAddress: "",
+    businessAddress: "",
+
+    // Section 2: Operational Details
     natureOfBusiness: "",
-    annualTurnover: "",
-    numberOfEmployees: "",
+    commencementDate: "",
+    accountingYearEnd: "",
+    bankers: "",
 
-    // Individual fields
-    firstName: "",
-    lastName: "",
-    middleName: "",
-    dateOfBirth: "",
-    gender: "",
-    nationality: "",
-    nin: "",
-    bvn: "",
-    residentialAddress: "",
-    employmentStatus: "",
-    employerName: "",
-    employerAddress: "",
-    monthlyIncome: "",
+    // Section 3: Ownership & Management
+    shareholders: [],
+    principalOfficers: {
+      chairman: { name: "", contact: "" },
+      managingDirector: { name: "", contact: "" },
+      companySecretary: { name: "", contact: "" }
+    },
 
-    // Contact person (for companies)
-    contactPersonName: "",
-    contactPersonEmail: "",
-    contactPersonPhone: "",
-    contactPersonDesignation: "",
-
-    // Directors/Partners
-    directors: [],
-    partners: [],
-
-    // Tax information
+    // New Taxpayer Questionnaire
+    taxOffice: "",
+    auditorsOrTaxConsultants: "",
+    sourceOfIncome: "",
+    vatLiability: "",
     previousTin: "",
-    existingTaxOffice: "",
-    registeredForVAT: "",
-    vatNumber: "",
-    registeredForWHT: "",
-
-    // Bank details
-    bankName: "",
-    accountNumber: "",
-    accountName: "",
 
     // Documents
+    applicationLetter: null,
     cacCertificate: null,
-    utilityBill: null,
-    validID: null,
-    passportPhoto: null,
-    bankStatement: null,
-    businessPermit: null,
+    cac1_1Form: null,
+    proofOfAddress: null,
 
     // Document URLs
+    applicationLetterUrl: "",
     cacCertificateUrl: "",
-    utilityBillUrl: "",
-    validIDUrl: "",
-    passportPhotoUrl: "",
-    bankStatementUrl: "",
-    businessPermitUrl: ""
+    cac1_1FormUrl: "",
+    proofOfAddressUrl: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -309,62 +385,77 @@ export function FirsComplianceForm() {
 
   const token = localStorage.getItem("token");
 
-useEffect(() => {
-  setFetching(true);
+  useEffect(() => {
+    setFetching(true);
 
-  // Safe parser for fields that can be array or JSON string
-  const parseJsonField = (field) => {
-    if (!field) return [];
-    if (Array.isArray(field)) return field;
-    try {
-      return JSON.parse(field);
-    } catch {
-      return [];
-    }
-  };
-
-  const fetchFirsApplication = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/firs-application`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const text = await res.text();
-      if (!text) throw new Error("Empty response from server");
-
-      const data = JSON.parse(text);
-      console.log(data);
-
-      if (data.success && data.application) {
-        const app = data.application;
-        setHasApplication(true);
-        setApplicationData(app);
-
-        setFormData({
-          ...app,
-          directors: parseJsonField(app.directors),
-          partners: parseJsonField(app.partners),
-
-          // Keep file URLs
-          cacCertificateUrl: app.cacCertificate || "",
-          utilityBillUrl: app.utilityBill || "",
-          validIDUrl: app.validID || "",
-          passportPhotoUrl: app.passportPhoto || "",
-          bankStatementUrl: app.bankStatement || "",
-          businessPermitUrl: app.businessPermit || ""
-        });
+    const parseJsonField = (field) => {
+      if (!field) return [];
+      if (Array.isArray(field)) return field;
+      try {
+        return JSON.parse(field);
+      } catch {
+        return [];
       }
-    } catch (err) {
-      console.error("Failed to fetch FIRS application:", err);
-      toast.error("Failed to fetch your FIRS application");
-    } finally {
-      setFetching(false);
-    }
-  };
+    };
 
-  fetchFirsApplication();
-}, [isOpen, token]);
+    const parsePrincipalOfficers = (field) => {
+      if (!field) {
+        return {
+          chairman: { name: "", contact: "" },
+          managingDirector: { name: "", contact: "" },
+          companySecretary: { name: "", contact: "" }
+        };
+      }
+      if (typeof field === "object") return field;
+      try {
+        return JSON.parse(field);
+      } catch {
+        return {
+          chairman: { name: "", contact: "" },
+          managingDirector: { name: "", contact: "" },
+          companySecretary: { name: "", contact: "" }
+        };
+      }
+    };
 
+    const fetchFirsApplication = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/firs-application`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const text = await res.text();
+        if (!text) throw new Error("Empty response from server");
+
+        const data = JSON.parse(text);
+
+        if (data.success && data.application) {
+          const app = data.application;
+          setHasApplication(true);
+          setApplicationData(app);
+
+          setFormData({
+            ...app,
+            shareholders: parseJsonField(app.shareholders),
+            principalOfficers: parsePrincipalOfficers(app.principalOfficers),
+
+            // Keep file URLs
+            applicationLetterUrl: app.applicationLetter || "",
+            cacCertificateUrl: app.cacCertificate || "",
+            cac1_1FormUrl: app.cac1_1Form || "",
+            proofOfAddressUrl: app.proofOfAddress || ""
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch FIRS application:", err);
+        toast.error("Failed to fetch your FIRS application");
+      } finally {
+        setFetching(false);
+      }
+    };
+
+    fetchFirsApplication();
+  }, [isOpen, token]);
 
   const handleClose = () => setIsOpen(false);
 
@@ -379,7 +470,6 @@ useEffect(() => {
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (files && files[0]) {
-      // Validate that it's an image
       const file = files[0];
       if (!file.type.startsWith("image/")) {
         toast.error("Please upload only image files");
@@ -389,6 +479,19 @@ useEffect(() => {
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+  };
+
+  const handlePrincipalOfficerChange = (role, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      principalOfficers: {
+        ...prev.principalOfficers,
+        [role]: {
+          ...prev.principalOfficers[role],
+          [field]: value
+        }
+      }
+    }));
   };
 
   const handleArrayChange = (field, index, key, value) => {
@@ -408,28 +511,26 @@ useEffect(() => {
   };
 
   const handleSubmit = async () => {
-    // Validation
-    if (!formData.registrationType) {
-      toast.error("Please select a registration type");
-      return;
-    }
+    // ================= VALIDATION =================
+    const requiredFields = [
+      "taxpayerName",
+      "rcNumber",
+      "dateOfIncorporation",
+      "registeredOfficeAddress",
+      "natureOfBusiness",
+      "commencementDate",
+      "accountingYearEnd",
+      "bankers",
+      "taxOffice",
+      "sourceOfIncome",
+      "vatLiability"
+    ];
 
-    if (!formData.taxPayerType) {
-      toast.error("Please select taxpayer type");
-      return;
-    }
-
-    if (formData.taxPayerType === "Corporate" && !formData.businessName) {
-      toast.error("Business name is required");
-      return;
-    }
-
-    if (
-      formData.taxPayerType === "Individual" &&
-      (!formData.firstName || !formData.lastName)
-    ) {
-      toast.error("First name and last name are required");
-      return;
+    for (const field of requiredFields) {
+      if (!formData[field] || formData[field].toString().trim() === "") {
+        toast.error(`${field.replace(/([A-Z])/g, " $1")} is required`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -437,13 +538,22 @@ useEffect(() => {
       const body = new FormData();
 
       for (const key in formData) {
-        if (Array.isArray(formData[key])) {
+        if (key === "principalOfficers" || key === "shareholders") {
           body.append(key, JSON.stringify(formData[key]));
         } else if (formData[key] instanceof File) {
           body.append(key, formData[key]);
         } else if (!key.endsWith("Url")) {
-          // Don't send URL fields back
-          body.append(key, formData[key] || "");
+          // Convert empty strings to null for optional fields only
+          const optionalFields = [
+            "businessAddress",
+            "auditorsOrTaxConsultants",
+            "previousTin"
+          ];
+          const value =
+            formData[key] === "" && optionalFields.includes(key)
+              ? null
+              : formData[key];
+          body.append(key, value);
         }
       }
 
@@ -457,7 +567,6 @@ useEffect(() => {
       if (data.success) {
         toast.success("FIRS application saved successfully!");
         handleClose();
-        // Refresh the application data
         window.location.reload();
       } else {
         toast.error(data.message || "Failed to save FIRS application");
@@ -468,24 +577,6 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const shouldShowSection = (section) => {
-    const { registrationType, taxPayerType } = formData;
-
-    const sectionMap = {
-      individual: taxPayerType === "Individual",
-      employment: taxPayerType === "Individual",
-      corporate: taxPayerType === "Corporate",
-      directors:
-        taxPayerType === "Corporate" && registrationType === "Company TIN",
-      partners:
-        taxPayerType === "Corporate" && registrationType === "Partnership TIN",
-      vat: registrationType === "VAT Registration",
-      wht: registrationType === "WHT Registration"
-    };
-
-    return sectionMap[section] || false;
   };
 
   return (
@@ -523,7 +614,7 @@ useEffect(() => {
                   FIRS Tax Registration Form
                 </h3>
                 <p className="text-sm text-slate-600 mt-1">
-                  Complete your Federal Inland Revenue Service registration
+                  Form TRIF/2006/001 - Federal Inland Revenue Service
                 </p>
               </div>
               <button
@@ -546,1003 +637,494 @@ useEffect(() => {
                 </div>
               ) : (
                 <div className="space-y-8">
-                  {/* Registration Type Selection */}
+                  {/* Section 1: Company Identification */}
                   <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                    <div className="flex items-start gap-3 mb-4">
+                    <div className="flex items-start gap-3 mb-6">
                       <div className="p-2 bg-blue-600 rounded-lg">
                         <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <h4 className="text-lg font-bold text-slate-900">
-                          Registration Information
+                          Section 1: Company Identification
                         </h4>
                         <p className="text-sm text-slate-600">
-                          Select the type of tax registration you need
+                          As registered with the Corporate Affairs Commission
                         </p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Select
-                        label="Registration Type"
-                        name="registrationType"
+                      <Input
+                        label="Taxpayer Name"
+                        name="taxpayerName"
+                        placeholder="Full registered company name"
                         required
-                        value={formData.registrationType}
+                        className="md:col-span-2"
+                        value={formData.taxpayerName}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Registration Number (RC No)"
+                        name="rcNumber"
+                        placeholder="CAC Registration Number"
+                        required
+                        value={formData.rcNumber}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Date of Incorporation"
+                        name="dateOfIncorporation"
+                        type="date"
+                        required
+                        value={formData.dateOfIncorporation}
+                        onChange={handleChange}
+                      />
+
+                      <TextArea
+                        label="Registered Office Address"
+                        name="registeredOfficeAddress"
+                        placeholder="Official address submitted to CAC"
+                        required
+                        value={formData.registeredOfficeAddress}
+                        onChange={handleChange}
+                      />
+
+                      <TextArea
+                        label="Business Address"
+                        name="businessAddress"
+                        placeholder="If different from registered office"
+                        value={formData.businessAddress}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </section>
+
+                  {/* Section 2: Operational Details */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3 mb-6">
+                      <div className="p-2 bg-emerald-100 rounded-lg">
+                        <Receipt className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-900">
+                          Section 2: Operational Details
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          Business operations and financial information
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="Nature of Business"
+                        name="natureOfBusiness"
+                        placeholder="E.g., Software Development, Retail, Consultancy"
+                        required
+                        value={formData.natureOfBusiness}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Commencement Date"
+                        name="commencementDate"
+                        type="date"
+                        required
+                        value={formData.commencementDate}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Accounting Year End"
+                        name="accountingYearEnd"
+                        type="date"
+                        required
+                        value={formData.accountingYearEnd}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Bankers"
+                        name="bankers"
+                        placeholder="Bank names and branches"
+                        required
+                        value={formData.bankers}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </section>
+
+                  {/* Section 3: Ownership & Management */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3 mb-6">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <Users className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-900">
+                          Section 3: Ownership & Management
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          Shareholders and principal officers
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Principal Officers */}
+                    <div className="mb-6">
+                      <h5 className="font-semibold text-slate-800 mb-4">
+                        Principal Officers
+                      </h5>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                          <Input
+                            label="Chairman - Name"
+                            name="chairmanName"
+                            placeholder="Full name"
+                            value={
+                              formData.principalOfficers.chairman.name || ""
+                            }
+                            onChange={(e) =>
+                              handlePrincipalOfficerChange(
+                                "chairman",
+                                "name",
+                                e.target.value
+                              )
+                            }
+                          />
+                          <Input
+                            label="Chairman - Contact"
+                            name="chairmanContact"
+                            placeholder="Phone/Email"
+                            value={
+                              formData.principalOfficers.chairman.contact || ""
+                            }
+                            onChange={(e) =>
+                              handlePrincipalOfficerChange(
+                                "chairman",
+                                "contact",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                          <Input
+                            label="Managing Director - Name"
+                            name="mdName"
+                            placeholder="Full name"
+                            value={
+                              formData.principalOfficers.managingDirector
+                                .name || ""
+                            }
+                            onChange={(e) =>
+                              handlePrincipalOfficerChange(
+                                "managingDirector",
+                                "name",
+                                e.target.value
+                              )
+                            }
+                          />
+                          <Input
+                            label="Managing Director - Contact"
+                            name="mdContact"
+                            placeholder="Phone/Email"
+                            value={
+                              formData.principalOfficers.managingDirector
+                                .contact || ""
+                            }
+                            onChange={(e) =>
+                              handlePrincipalOfficerChange(
+                                "managingDirector",
+                                "contact",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                          <Input
+                            label="Company Secretary - Name"
+                            name="secretaryName"
+                            placeholder="Full name"
+                            value={
+                              formData.principalOfficers.companySecretary
+                                .name || ""
+                            }
+                            onChange={(e) =>
+                              handlePrincipalOfficerChange(
+                                "companySecretary",
+                                "name",
+                                e.target.value
+                              )
+                            }
+                          />
+                          <Input
+                            label="Company Secretary - Contact"
+                            name="secretaryContact"
+                            placeholder="Phone/Email"
+                            value={
+                              formData.principalOfficers.companySecretary
+                                .contact || ""
+                            }
+                            onChange={(e) =>
+                              handlePrincipalOfficerChange(
+                                "companySecretary",
+                                "contact",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Shareholders */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h5 className="font-semibold text-slate-800">
+                          Shareholders
+                        </h5>
+                        <button
+                          type="button"
+                          onClick={() => addArrayItem("shareholders")}
+                          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Shareholder
+                        </button>
+                      </div>
+
+                      {(formData.shareholders || []).length === 0 ? (
+                        <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg">
+                          <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                          <p>No shareholders added yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {formData.shareholders.map((shareholder, index) => (
+                            <div
+                              key={index}
+                              className="border-2 border-slate-200 rounded-xl p-5 bg-slate-50 relative"
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeArrayItem("shareholders", index)
+                                }
+                                className="absolute top-4 right-4 p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+
+                              <h5 className="font-semibold text-slate-700 mb-4">
+                                Shareholder {index + 1}
+                              </h5>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <input
+                                  type="text"
+                                  placeholder="Name *"
+                                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+                                  value={shareholder.name || ""}
+                                  onChange={(e) =>
+                                    handleArrayChange(
+                                      "shareholders",
+                                      index,
+                                      "name",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+
+                                <input
+                                  type="text"
+                                  placeholder="Address *"
+                                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+                                  value={shareholder.address || ""}
+                                  onChange={(e) =>
+                                    handleArrayChange(
+                                      "shareholders",
+                                      index,
+                                      "address",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+
+                                <input
+                                  type="number"
+                                  placeholder="Shareholding % *"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+                                  value={shareholder.percentage || ""}
+                                  onChange={(e) =>
+                                    handleArrayChange(
+                                      "shareholders",
+                                      index,
+                                      "percentage",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* New Taxpayer Questionnaire */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3 mb-6">
+                      <div className="p-2 bg-amber-100 rounded-lg">
+                        <AlertCircle className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-900">
+                          New Taxpayer Questionnaire
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          Tax liability determination
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="Tax Office"
+                        name="taxOffice"
+                        placeholder="FIRS Integrated Tax Office (MSTO or GTO)"
+                        required
+                        value={formData.taxOffice}
+                        onChange={handleChange}
+                      />
+
+                      <Input
+                        label="Auditors/Tax Consultants"
+                        name="auditorsOrTaxConsultants"
+                        placeholder="Name and address of firm"
+                        value={formData.auditorsOrTaxConsultants}
+                        onChange={handleChange}
+                      />
+
+                      <Select
+                        label="Source of Income"
+                        name="sourceOfIncome"
+                        required
+                        value={formData.sourceOfIncome}
                         onChange={handleChange}
                         options={[
-                          { value: "", label: "Select Registration Type" },
+                          { value: "", label: "Select Source" },
                           {
-                            value: "TIN Registration",
-                            label:
-                              "TIN (Tax Identification Number) Registration"
+                            value: "Nigeria",
+                            label: "Income derived within Nigeria"
                           },
                           {
-                            value: "Company TIN",
-                            label: "Company TIN Registration"
+                            value: "Foreign",
+                            label: "Foreign trade/income"
+                          },
+                          { value: "Both", label: "Both" }
+                        ]}
+                      />
+
+                      <Select
+                        label="VAT Liability"
+                        name="vatLiability"
+                        required
+                        value={formData.vatLiability}
+                        onChange={handleChange}
+                        options={[
+                          { value: "", label: "Select Option" },
+                          {
+                            value: "Yes",
+                            label: "Will reach VAT threshold"
                           },
                           {
-                            value: "Partnership TIN",
-                            label: "Partnership TIN Registration"
-                          },
-                          {
-                            value: "VAT Registration",
-                            label: "VAT Registration"
-                          },
-                          {
-                            value: "WHT Registration",
-                            label: "Withholding Tax (WHT) Registration"
-                          },
-                          {
-                            value: "PAYE Registration",
-                            label: "PAYE (Pay As You Earn) Registration"
+                            value: "No",
+                            label: "Will not reach VAT threshold"
                           }
                         ]}
                       />
 
-                      <Select
-                        label="Taxpayer Type"
-                        name="taxPayerType"
-                        required
-                        value={formData.taxPayerType}
+                      <Input
+                        label="Previous TIN (if already on certificate)"
+                        name="previousTin"
+                        placeholder="Enter TIN for activation"
+                        className="md:col-span-2"
+                        value={formData.previousTin}
                         onChange={handleChange}
-                        options={[
-                          { value: "", label: "Select Taxpayer Type" },
-                          { value: "Individual", label: "Individual" },
-                          { value: "Corporate", label: "Corporate/Business" }
-                        ]}
                       />
                     </div>
-
-                    {formData.registrationType && formData.taxPayerType && (
-                      <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-sm">
-                            <p className="font-semibold text-slate-900 mb-1">
-                              {formData.registrationType} -{" "}
-                              {formData.taxPayerType}
-                            </p>
-                            <p className="text-slate-600">
-                              {formData.taxPayerType === "Individual" &&
-                                "For individual taxpayers. Requires personal information and identification documents."}
-                              {formData.taxPayerType === "Corporate" &&
-                                "For businesses and organizations. Requires company details, directors/partners information, and business documents."}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </section>
 
-                  {/* Show sections based on taxpayer type */}
-                  {formData.taxPayerType && (
-                    <>
-                      {/* ================= INDIVIDUAL DETAILS ================= */}
-                      {shouldShowSection("individual") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start gap-3 mb-6">
-                            <div className="p-2 bg-emerald-100 rounded-lg">
-                              <Users className="w-5 h-5 text-emerald-600" />
-                            </div>
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900">
-                                Personal Information
-                              </h4>
-                              <p className="text-sm text-slate-600">
-                                Provide your personal details
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Input
-                              label="First Name"
-                              name="firstName"
-                              placeholder="Enter first name"
-                              required
-                              value={formData.firstName}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Middle Name"
-                              name="middleName"
-                              placeholder="Enter middle name"
-                              value={formData.middleName}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Last Name"
-                              name="lastName"
-                              placeholder="Enter last name"
-                              required
-                              value={formData.lastName}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Date of Birth"
-                              name="dateOfBirth"
-                              type="date"
-                              required
-                              value={formData.dateOfBirth}
-                              onChange={handleChange}
-                            />
-
-                            <Select
-                              label="Gender"
-                              name="gender"
-                              required
-                              value={formData.gender}
-                              onChange={handleChange}
-                              options={[
-                                { value: "", label: "Select Gender" },
-                                { value: "Male", label: "Male" },
-                                { value: "Female", label: "Female" }
-                              ]}
-                            />
-
-                            <Input
-                              label="Nationality"
-                              name="nationality"
-                              placeholder="Enter nationality"
-                              required
-                              value={formData.nationality}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="NIN (National ID Number)"
-                              name="nin"
-                              placeholder="Enter NIN"
-                              required
-                              value={formData.nin}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="BVN (Bank Verification Number)"
-                              name="bvn"
-                              placeholder="Enter BVN"
-                              required
-                              value={formData.bvn}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Phone Number"
-                              name="businessPhone"
-                              type="tel"
-                              placeholder="Enter phone number"
-                              required
-                              value={formData.businessPhone}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Email Address"
-                              name="businessEmail"
-                              type="email"
-                              placeholder="Enter email address"
-                              required
-                              className="md:col-span-3"
-                              value={formData.businessEmail}
-                              onChange={handleChange}
-                            />
-
-                            <TextArea
-                              label="Residential Address"
-                              name="residentialAddress"
-                              placeholder="Enter complete residential address"
-                              required
-                              value={formData.residentialAddress}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </section>
-                      )}
-
-                      {/* ================= EMPLOYMENT DETAILS (Individual) ================= */}
-                      {shouldShowSection("employment") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start gap-3 mb-6">
-                            <div className="p-2 bg-purple-100 rounded-lg">
-                              <FileText className="w-5 h-5 text-purple-600" />
-                            </div>
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900">
-                                Employment Information
-                              </h4>
-                              <p className="text-sm text-slate-600">
-                                Provide employment and income details
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Select
-                              label="Employment Status"
-                              name="employmentStatus"
-                              value={formData.employmentStatus}
-                              onChange={handleChange}
-                              options={[
-                                {
-                                  value: "",
-                                  label: "Select Employment Status"
-                                },
-                                { value: "Employed", label: "Employed" },
-                                {
-                                  value: "Self-Employed",
-                                  label: "Self-Employed"
-                                },
-                                { value: "Unemployed", label: "Unemployed" },
-                                { value: "Student", label: "Student" },
-                                { value: "Retired", label: "Retired" }
-                              ]}
-                            />
-
-                            <Input
-                              label="Monthly Income (NGN)"
-                              name="monthlyIncome"
-                              type="number"
-                              placeholder="Enter monthly income"
-                              value={formData.monthlyIncome}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Employer Name"
-                              name="employerName"
-                              placeholder="Enter employer name"
-                              className="md:col-span-2"
-                              value={formData.employerName}
-                              onChange={handleChange}
-                            />
-
-                            <TextArea
-                              label="Employer Address"
-                              name="employerAddress"
-                              placeholder="Enter employer address"
-                              value={formData.employerAddress}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </section>
-                      )}
-
-                      {/* ================= CORPORATE DETAILS ================= */}
-                      {shouldShowSection("corporate") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start gap-3 mb-6">
-                            <div className="p-2 bg-emerald-100 rounded-lg">
-                              <Receipt className="w-5 h-5 text-emerald-600" />
-                            </div>
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900">
-                                Business Information
-                              </h4>
-                              <p className="text-sm text-slate-600">
-                                Provide details about your business
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                              label="Business/Company Name"
-                              name="businessName"
-                              placeholder="Enter business name"
-                              required
-                              className="md:col-span-2"
-                              value={formData.businessName}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="RC Number"
-                              name="rcNumber"
-                              placeholder="CAC Registration Number"
-                              required
-                              value={formData.rcNumber}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Date of Incorporation"
-                              name="dateOfIncorporation"
-                              type="date"
-                              required
-                              value={formData.dateOfIncorporation}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Nature of Business"
-                              name="natureOfBusiness"
-                              placeholder="E.g., Retail, Manufacturing, Services"
-                              required
-                              value={formData.natureOfBusiness}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Annual Turnover (NGN)"
-                              name="annualTurnover"
-                              type="number"
-                              placeholder="Enter annual turnover"
-                              value={formData.annualTurnover}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Number of Employees"
-                              name="numberOfEmployees"
-                              type="number"
-                              placeholder="Enter number of employees"
-                              value={formData.numberOfEmployees}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Business Email"
-                              name="businessEmail"
-                              type="email"
-                              placeholder="business@example.com"
-                              required
-                              value={formData.businessEmail}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Business Phone"
-                              name="businessPhone"
-                              type="tel"
-                              placeholder="Business contact number"
-                              required
-                              value={formData.businessPhone}
-                              onChange={handleChange}
-                            />
-
-                            <TextArea
-                              label="Business Address"
-                              name="businessAddress"
-                              placeholder="Enter complete business address"
-                              required
-                              value={formData.businessAddress}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </section>
-                      )}
-
-                      {/* ================= CONTACT PERSON (Corporate) ================= */}
-                      {shouldShowSection("corporate") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start gap-3 mb-6">
-                            <div className="p-2 bg-indigo-100 rounded-lg">
-                              <Users className="w-5 h-5 text-indigo-600" />
-                            </div>
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900">
-                                Contact Person
-                              </h4>
-                              <p className="text-sm text-slate-600">
-                                Primary contact for tax matters
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                              label="Contact Person Name"
-                              name="contactPersonName"
-                              placeholder="Enter full name"
-                              required
-                              value={formData.contactPersonName}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Designation/Position"
-                              name="contactPersonDesignation"
-                              placeholder="E.g., Finance Manager"
-                              required
-                              value={formData.contactPersonDesignation}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Email Address"
-                              name="contactPersonEmail"
-                              type="email"
-                              placeholder="contact@example.com"
-                              required
-                              value={formData.contactPersonEmail}
-                              onChange={handleChange}
-                            />
-
-                            <Input
-                              label="Phone Number"
-                              name="contactPersonPhone"
-                              type="tel"
-                              placeholder="Contact phone number"
-                              required
-                              value={formData.contactPersonPhone}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </section>
-                      )}
-
-                      {/* ================= DIRECTORS (Company) ================= */}
-                      {shouldShowSection("directors") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-start gap-3">
-                              <div className="p-2 bg-teal-100 rounded-lg">
-                                <Users className="w-5 h-5 text-teal-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-lg font-bold text-slate-900">
-                                  Directors
-                                </h4>
-                                <p className="text-sm text-slate-600">
-                                  Add company directors
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => addArrayItem("directors")}
-                              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all text-sm font-medium"
-                            >
-                              <Plus className="w-4 h-4" />
-                              Add Director
-                            </button>
-                          </div>
-
-                          {(formData.directors || []).length === 0 ? (
-                            <div className="text-center py-8 text-slate-500">
-                              <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                              <p>
-                                No directors added yet. Click "Add Director" to
-                                get started.
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {formData.directors.map((director, index) => (
-                                <div
-                                  key={index}
-                                  className="border-2 border-slate-200 rounded-xl p-5 bg-slate-50 relative hover:border-teal-300 transition-all"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeArrayItem("directors", index)
-                                    }
-                                    className="absolute top-4 right-4 p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
-                                    title="Remove"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-
-                                  <h5 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
-                                    <span className="w-6 h-6 bg-teal-600 text-white rounded-full flex items-center justify-center text-xs">
-                                      {index + 1}
-                                    </span>
-                                    Director {index + 1}
-                                  </h5>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <input
-                                      type="text"
-                                      placeholder="Full Name *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={director.fullName || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "directors",
-                                          index,
-                                          "fullName",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="email"
-                                      placeholder="Email Address *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={director.email || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "directors",
-                                          index,
-                                          "email",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="tel"
-                                      placeholder="Phone Number *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={director.phoneNumber || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "directors",
-                                          index,
-                                          "phoneNumber",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="NIN (National ID Number) *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={director.nin || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "directors",
-                                          index,
-                                          "nin",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="BVN *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={director.bvn || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "directors",
-                                          index,
-                                          "bvn",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="Designation/Position"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={director.designation || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "directors",
-                                          index,
-                                          "designation",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="Address *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none bg-white md:col-span-2"
-                                      value={director.address || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "directors",
-                                          index,
-                                          "address",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* ================= PARTNERS (Partnership) ================= */}
-                      {shouldShowSection("partners") && (
-                        <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                          <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-start gap-3">
-                              <div className="p-2 bg-violet-100 rounded-lg">
-                                <Users className="w-5 h-5 text-violet-600" />
-                              </div>
-                              <div>
-                                <h4 className="text-lg font-bold text-slate-900">
-                                  Partners
-                                </h4>
-                                <p className="text-sm text-slate-600">
-                                  Add business partners
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => addArrayItem("partners")}
-                              className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-all text-sm font-medium"
-                            >
-                              <Plus className="w-4 h-4" />
-                              Add Partner
-                            </button>
-                          </div>
-
-                          {(formData.partners || []).length === 0 ? (
-                            <div className="text-center py-8 text-slate-500">
-                              <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                              <p>
-                                No partners added yet. Click "Add Partner" to
-                                get started.
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {formData.partners.map((partner, index) => (
-                                <div
-                                  key={index}
-                                  className="border-2 border-slate-200 rounded-xl p-5 bg-slate-50 relative hover:border-violet-300 transition-all"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeArrayItem("partners", index)
-                                    }
-                                    className="absolute top-4 right-4 p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
-                                    title="Remove"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-
-                                  <h5 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
-                                    <span className="w-6 h-6 bg-violet-600 text-white rounded-full flex items-center justify-center text-xs">
-                                      {index + 1}
-                                    </span>
-                                    Partner {index + 1}
-                                  </h5>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <input
-                                      type="text"
-                                      placeholder="Full Name *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={partner.fullName || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "partners",
-                                          index,
-                                          "fullName",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="email"
-                                      placeholder="Email Address *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={partner.email || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "partners",
-                                          index,
-                                          "email",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="tel"
-                                      placeholder="Phone Number *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={partner.phoneNumber || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "partners",
-                                          index,
-                                          "phoneNumber",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="number"
-                                      placeholder="Partnership Share % *"
-                                      min="0"
-                                      max="100"
-                                      step="0.01"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={partner.partnershipShare || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "partners",
-                                          index,
-                                          "partnershipShare",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="NIN (National ID Number)"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={partner.nin || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "partners",
-                                          index,
-                                          "nin",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="BVN"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none bg-white"
-                                      value={partner.bvn || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "partners",
-                                          index,
-                                          "bvn",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-
-                                    <input
-                                      type="text"
-                                      placeholder="Address *"
-                                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none bg-white md:col-span-2"
-                                      value={partner.address || ""}
-                                      onChange={(e) =>
-                                        handleArrayChange(
-                                          "partners",
-                                          index,
-                                          "address",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* ================= TAX INFORMATION ================= */}
-                      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-3 mb-6">
-                          <div className="p-2 bg-amber-100 rounded-lg">
-                            <Receipt className="w-5 h-5 text-amber-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-slate-900">
-                              Tax Information
-                            </h4>
-                            <p className="text-sm text-slate-600">
-                              Previous tax registration details (if applicable)
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                            label="Previous TIN (if any)"
-                            name="previousTin"
-                            placeholder="Enter previous TIN"
-                            value={formData.previousTin}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Existing Tax Office"
-                            name="existingTaxOffice"
-                            placeholder="E.g., Lagos State Tax Office"
-                            value={formData.existingTaxOffice}
-                            onChange={handleChange}
-                          />
-
-                          <Select
-                            label="Registered for VAT?"
-                            name="registeredForVAT"
-                            value={formData.registeredForVAT}
-                            onChange={handleChange}
-                            options={[
-                              { value: "", label: "Select Option" },
-                              { value: "Yes", label: "Yes" },
-                              { value: "No", label: "No" }
-                            ]}
-                          />
-
-                          {formData.registeredForVAT === "Yes" && (
-                            <Input
-                              label="VAT Number"
-                              name="vatNumber"
-                              placeholder="Enter VAT number"
-                              value={formData.vatNumber}
-                              onChange={handleChange}
-                            />
-                          )}
-
-                          <Select
-                            label="Registered for WHT?"
-                            name="registeredForWHT"
-                            value={formData.registeredForWHT}
-                            onChange={handleChange}
-                            options={[
-                              { value: "", label: "Select Option" },
-                              { value: "Yes", label: "Yes" },
-                              { value: "No", label: "No" }
-                            ]}
-                          />
-                        </div>
-                      </section>
-
-                      {/* ================= BANK DETAILS ================= */}
-                      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-3 mb-6">
-                          <div className="p-2 bg-cyan-100 rounded-lg">
-                            <FileText className="w-5 h-5 text-cyan-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-slate-900">
-                              Bank Details
-                            </h4>
-                            <p className="text-sm text-slate-600">
-                              Primary bank account information
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <Input
-                            label="Bank Name"
-                            name="bankName"
-                            placeholder="Enter bank name"
-                            required
-                            value={formData.bankName}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Account Number"
-                            name="accountNumber"
-                            placeholder="Enter account number"
-                            required
-                            value={formData.accountNumber}
-                            onChange={handleChange}
-                          />
-
-                          <Input
-                            label="Account Name"
-                            name="accountName"
-                            placeholder="Enter account name"
-                            required
-                            value={formData.accountName}
-                            onChange={handleChange}
-                          />
-                        </div>
-                      </section>
-
-                      {/* ================= DOCUMENT UPLOADS ================= */}
-                      <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-                        <div className="flex items-start gap-3 mb-6">
-                          <div className="p-2 bg-orange-100 rounded-lg">
-                            <FileText className="w-5 h-5 text-orange-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-slate-900">
-                              Supporting Documents
-                            </h4>
-                            <p className="text-sm text-slate-600">
-                              Upload required documents (images only)
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {shouldShowSection("corporate") && (
-                            <FileUpload
-                              label="CAC Certificate"
-                              name="cacCertificate"
-                              description="Certificate of Incorporation (image)"
-                              onChange={handleChange}
-                              fileName={formData.cacCertificate?.name}
-                              fileUrl={formData.cacCertificateUrl}
-                            />
-                          )}
-
-                          <FileUpload
-                            label="Valid ID"
-                            name="validID"
-                            description="National ID, Driver's License, or Passport (image)"
-                            onChange={handleChange}
-                            fileName={formData.validID?.name}
-                            fileUrl={formData.validIDUrl}
-                          />
-
-                          <FileUpload
-                            label="Passport Photograph"
-                            name="passportPhoto"
-                            description="Recent passport-sized photograph"
-                            onChange={handleChange}
-                            fileName={formData.passportPhoto?.name}
-                            fileUrl={formData.passportPhotoUrl}
-                          />
-
-                          <FileUpload
-                            label="Utility Bill"
-                            name="utilityBill"
-                            description="Proof of address (not older than 3 months, image)"
-                            onChange={handleChange}
-                            fileName={formData.utilityBill?.name}
-                            fileUrl={formData.utilityBillUrl}
-                          />
-
-                          <FileUpload
-                            label="Bank Statement"
-                            name="bankStatement"
-                            description="Recent bank statement (last 3 months, image)"
-                            onChange={handleChange}
-                            fileName={formData.bankStatement?.name}
-                            fileUrl={formData.bankStatementUrl}
-                          />
-
-                          {shouldShowSection("corporate") && (
-                            <FileUpload
-                              label="Business Permit/License"
-                              name="businessPermit"
-                              description="Business operating license (image)"
-                              onChange={handleChange}
-                              fileName={formData.businessPermit?.name}
-                              fileUrl={formData.businessPermitUrl}
-                            />
-                          )}
-                        </div>
-                      </section>
-                    </>
-                  )}
+                  {/* Required Documents */}
+                  <section className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                    <div className="flex items-start gap-3 mb-6">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <FileText className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-slate-900">
+                          Required Documents
+                        </h4>
+                        <p className="text-sm text-slate-600">
+                          Upload all necessary attachments (images only)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FileUpload
+                        label="Application Letter"
+                        name="applicationLetter"
+                        description="Formal request on company letterhead"
+                        onChange={handleChange}
+                        fileName={formData.applicationLetter?.name}
+                        fileUrl={formData.applicationLetterUrl}
+                      />
+
+                      <FileUpload
+                        label="CAC Certificate of Incorporation"
+                        name="cacCertificate"
+                        description="Copy of incorporation certificate"
+                        onChange={handleChange}
+                        fileName={formData.cacCertificate?.name}
+                        fileUrl={formData.cacCertificateUrl}
+                      />
+
+                      <FileUpload
+                        label="CAC 1.1 Form"
+                        name="cac1_1Form"
+                        description="Completed CAC form 1.1"
+                        onChange={handleChange}
+                        fileName={formData.cac1_1Form?.name}
+                        fileUrl={formData.cac1_1FormUrl}
+                      />
+
+                      <FileUpload
+                        label="Proof of Address"
+                        name="proofOfAddress"
+                        description="Utility bill or tenancy agreement"
+                        onChange={handleChange}
+                        fileName={formData.proofOfAddress?.name}
+                        fileUrl={formData.proofOfAddressUrl}
+                      />
+                    </div>
+                  </section>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            {!fetching && formData.taxPayerType && (
+            {!fetching && (
               <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
                 <button
                   type="button"
