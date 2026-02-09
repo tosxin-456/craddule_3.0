@@ -283,8 +283,8 @@ export default function LoginPage() {
             </p>
             <div className="flex justify-center gap-4">
               <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-3xl font-bold">500K+</div>
-                <div className="text-sm opacity-90">Active Users</div>
+                <div className="text-3xl font-bold">25K+</div>
+                <div className="text-sm opacity-90">Businesses Opened</div>
               </div>
               <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center">
                 <div className="text-3xl font-bold">4.9★</div>

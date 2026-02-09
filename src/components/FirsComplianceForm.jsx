@@ -728,7 +728,7 @@ export function FirsComplianceForm() {
                       />
 
                       <Input
-                        label="Commencement Date"
+                        label="Commencement Date (date your business started generating income or became liable to tax, as required by FIRS.)"
                         name="commencementDate"
                         type="date"
                         required
@@ -999,7 +999,7 @@ export function FirsComplianceForm() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
-                        label="Tax Office"
+                        label="Tax Office (Your assigned FIRS tax office)"
                         name="taxOffice"
                         placeholder="FIRS Integrated Tax Office (MSTO or GTO)"
                         required
@@ -1083,7 +1083,7 @@ export function FirsComplianceForm() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FileUpload
-                        label="Application Letter"
+                        label="Application Letter (Formal letter requesting tax registration)"
                         name="applicationLetter"
                         description="Formal request on company letterhead"
                         onChange={handleChange}
@@ -1101,7 +1101,7 @@ export function FirsComplianceForm() {
                       />
 
                       <FileUpload
-                        label="CAC 1.1 Form"
+                        label="CAC 1.1 Form (CAC certificate of business registration)"
                         name="cac1_1Form"
                         description="Completed CAC form 1.1"
                         onChange={handleChange}

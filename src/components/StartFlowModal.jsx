@@ -57,39 +57,6 @@ export default function StartFlowModal({ isOpen, onClose }) {
 
           {/* Options */}
           <div className="space-y-4">
-            {/* Option A */}
-            <button
-              onClick={() => goTo("/dashboard/compliance")}
-              className="group w-full text-left p-5 rounded-2xl border border-gray-200 hover:border-green-600 hover:bg-green-50 transition flex items-start gap-4"
-            >
-              <div className="w-11 h-11 rounded-xl bg-green-600 flex items-center justify-center flex-shrink-0">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-
-              <div className="flex-1">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-gray-900">
-                    Business documents & funding pathway
-                  </p>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-green-700 transition" />
-                </div>
-
-                <p className="text-sm text-gray-600 mt-1">
-                  Compliance checklist, structured roadmap, and investor
-                  readiness.
-                </p>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                    Compliance
-                  </span>
-                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                    Funding-ready
-                  </span>
-                </div>
-              </div>
-            </button>
-
             {/* Option B */}
             <button
               onClick={() => goTo("/ai-walkthrough")}
@@ -118,6 +85,39 @@ export default function StartFlowModal({ isOpen, onClose }) {
                   </span>
                   <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
                     Business plan
+                  </span>
+                </div>
+              </div>
+            </button>
+
+            {/* Option A */}
+            <button
+              onClick={() => goTo("/dashboard/compliance")}
+              className="group w-full text-left p-5 rounded-2xl border border-gray-200 hover:border-green-600 hover:bg-green-50 transition flex items-start gap-4"
+            >
+              <div className="w-11 h-11 rounded-xl bg-green-600 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-gray-900">
+                    Business documents & funding pathway
+                  </p>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-green-700 transition" />
+                </div>
+
+                <p className="text-sm text-gray-600 mt-1">
+                  Compliance checklist, structured roadmap, and investor
+                  readiness.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                    Compliance
+                  </span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                    Funding-ready
                   </span>
                 </div>
               </div>

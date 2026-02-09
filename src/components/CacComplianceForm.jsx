@@ -885,7 +885,7 @@ export function CacComplianceForm() {
                           <Input
                             label="Name of Director & Tel. No."
                             name="directorNameAndTel"
-                            placeholder="e.g., John Doe - 08012345678"
+                            placeholder="e.g., Mary Ann - 08012345678"
                             required
                             value={formData.directorNameAndTel}
                             onChange={handleChange}

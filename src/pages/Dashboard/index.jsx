@@ -108,7 +108,7 @@ export default function DashboardHome() {
             <Rocket className="w-8 h-8" />
             <h1 className="text-3xl font-bold">Founder Dashboard</h1>
           </div>
-          <p className="text-blue-100 text-lg max-w-2xl">
+          <p className="text-blue-100 text-lg">
             Your journey from compliance to funding readiness, simplified and
             tracked.
           </p>
@@ -161,7 +161,7 @@ export default function DashboardHome() {
                 <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                   <AlertCircle className="w-6 h-6 text-white" />
                 </div>
-                <div className="flex-1">
+                {/* <div className="flex-1">
                   <h3 className="text-xl font-semibold text-white mb-2">
                     Next Required Action
                   </h3>
@@ -173,7 +173,7 @@ export default function DashboardHome() {
                     Upload Document
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
-                </div>
+                </div> */}
               </div>
             </div>
           </section>

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { ShieldCheck, Loader2, RefreshCcw } from "lucide-react";
 import { API_BASE_URL } from "../../config/apiConfig";
 
-const OTP_DURATION = 7 * 60; // 7 minutes in seconds
+const OTP_DURATION = 15 * 60; // 7 minutes in seconds
 
 export default function VerifyOtp() {
   const navigate = useNavigate();

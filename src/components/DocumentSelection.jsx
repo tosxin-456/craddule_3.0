@@ -93,7 +93,7 @@ export function DocumentSelectionModal() {
       {showModal && (
         <div className="bg-white rounded-2xl shadow-lg max-w-2xl w-full p-6">
           <h3 className="text-lg font-semibold mb-2">
-            Select Documents to Fill
+            Choose what you want us to work on
           </h3>
 
           <p className="text-gray-600 mb-4">
@@ -108,7 +108,7 @@ export function DocumentSelectionModal() {
           </p>
 
           <div className="flex flex-col space-y-3">
-            {["CAC", "FIRS", "SCUML"].map((doc) => (
+            {["CAC", "TIN", "SCUML"].map((doc) => (
               <label key={doc} className="flex items-center space-x-2">
                 <input
                   type="checkbox"

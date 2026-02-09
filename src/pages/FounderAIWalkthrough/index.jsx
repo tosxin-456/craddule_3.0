@@ -213,6 +213,16 @@ function ChatStage({
   canGenerate,
   isTyping
 }) {
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
+
   return (
     <div className="flex flex-col h-[85vh]">
       <div className="p-6 border-b border-slate-200">
@@ -244,6 +254,9 @@ function ChatStage({
             </div>
           </div>
         )}
+
+        {/* Invisible div at the end for scrolling */}
+        <div ref={messagesEndRef} />
       </div>
 
       <div className="p-6 border-t border-slate-200 bg-slate-50">
@@ -320,7 +333,7 @@ function GeneratingStage() {
         Generating Your Business Model
       </h2>
       <p className="text-slate-600 text-center max-w-md mb-8">
-        Our AI is analyzing your idea and creating a comprehensive business
+        Abby  is analyzing your idea and creating a comprehensive business
         model...
       </p>
 
