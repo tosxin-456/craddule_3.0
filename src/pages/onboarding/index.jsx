@@ -68,6 +68,11 @@ const KEY_DOCUMENTS = [
 
 const questions = [
   {
+    label: "What is the name of your product or startup?",
+    hint: "This helps us personalise your experience throughout the platform.",
+    placeholder: "Example: Paystack, FlexiCash, NaijaHealth..."
+  },
+  {
     label: "Write briefly about your business",
     hint: "Describe the real-world problem your business addresses.",
     placeholder:
@@ -352,24 +357,38 @@ export default function FounderOnboarding() {
     }, 800);
   };
 
-  const handleNext = async () => {
-    if (!currentAnswer || currentAnswer.trim().length === 0) {
-      await saveStep(currentStep, "No answer provided");
-      setAnswers({ ...answers, [currentStep]: "No answer provided" });
-    }
-    setIsAnimating(true);
-    setDirection(1);
+const handleNext = async () => {
+  if (!currentAnswer || currentAnswer.trim().length === 0) {
+    await saveStep(currentStep, "No answer provided");
+    setAnswers({ ...answers, [currentStep]: "No answer provided" });
+  }
 
-    setTimeout(() => {
-      if (currentStep < questions.length - 1) {
-        setCurrentStep(currentStep + 1);
-        setCharCount(answers[currentStep + 1]?.length || 0);
-      } else {
-        submitAll();
-      }
-      setIsAnimating(false);
-    }, 300);
-  };
+  // ✅ Save startup name when leaving step 0
+  if (currentStep === 0 && answers[0]?.trim()) {
+    try {
+      await fetch(`${API_BASE_URL}/users/start-up`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ startupName: answers[0].trim() })
+      });
+    } catch (err) {
+      console.warn("Failed to save startup name to profile:", err);
+    }
+  }
+
+  setIsAnimating(true);
+  setDirection(1);
+
+  setTimeout(() => {
+    if (currentStep < questions.length - 1) {
+      setCurrentStep(currentStep + 1);
+      setCharCount(answers[currentStep + 1]?.length || 0);
+    } else {
+      submitAll();
+    }
+    setIsAnimating(false);
+  }, 300);
+};
 
   const handleBack = () => {
     setIsAnimating(true);
@@ -826,7 +845,76 @@ export default function FounderOnboarding() {
                     </>
                   ) : currentQuestion.label.includes("key documents") ? (
                     <div className="relative w-full rounded-xl sm:rounded-2xl border-2 p-4 sm:p-5 md:p-6 bg-white/50 backdrop-blur-sm border-slate-200 hover:border-slate-300 shadow-lg transition-all">
-                      {/* ... rest of the documents section ... */}
+                      <p className="text-xs sm:text-sm text-slate-500 mb-3 font-medium">
+                        Select all that apply:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                        {KEY_DOCUMENTS.map((doc) => {
+                          const isSelected = selectedDocs.includes(doc);
+                          return (
+                            <button
+                              key={doc}
+                              type="button"
+                              onClick={() => {
+                                let updated;
+                                if (doc === "None") {
+                                  updated = isSelected ? [] : ["None"];
+                                } else {
+                                  const withoutNone = selectedDocs.filter(
+                                    (d) => d !== "None"
+                                  );
+                                  updated = isSelected
+                                    ? withoutNone.filter((d) => d !== doc)
+                                    : [...withoutNone, doc];
+                                }
+                                const joined = updated.join(", ");
+                                setAnswers({
+                                  ...answers,
+                                  [currentStep]: joined
+                                });
+                                saveStep(currentStep, joined);
+                              }}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${
+                                isSelected
+                                  ? "border-blue-500 bg-blue-50 text-blue-800 shadow-md"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/50"
+                              }`}
+                            >
+                              <div
+                                className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                                  isSelected
+                                    ? "border-blue-500 bg-blue-500"
+                                    : "border-slate-300"
+                                }`}
+                              >
+                                {isSelected && (
+                                  <svg
+                                    className="w-3 h-3 text-white"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                              {doc}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {selectedDocs.length > 0 && (
+                        <p className="mt-3 text-xs text-blue-700 font-medium">
+                          ✓ {selectedDocs.length} selected:{" "}
+                          {selectedDocs.join(", ")}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <textarea

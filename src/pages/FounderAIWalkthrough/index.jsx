@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Sparkles,
   ArrowRight,
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { saveAs } from "file-saver";
+
 
 import { API_BASE_URL } from "../../config/apiConfig";
 import ReactMarkdown from "react-markdown";

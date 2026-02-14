@@ -147,7 +147,7 @@ const FileUpload = ({
   </div>
 );
 
-const FIRSApplicationSummary = ({ application, onViewFull }) => {
+const TINApplicationSummary = ({ application, onViewFull }) => {
   const [loading, setLoading] = useState(false);
 
   const getStatusColor = (status) => {
@@ -185,10 +185,10 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
 
     setLoading(true);
 
-    const reference = `FIRS-${application.id}-${Date.now()}`;
+    const reference = `TIN-${application.id}-${Date.now()}`;
 
     const handler = window.PaystackPop.setup({
-      key: "pk_test_326283a4813bb26a9b6372c90c393ea21a46aff4",
+      key: "pk_live_ad719098c01b1d5e280aa45492782cb661b74d46",
       email: application.businessEmail || "customer@example.com",
       amount: application.price * 100,
       ref: reference,
@@ -203,7 +203,7 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
               },
               body: JSON.stringify({
                 reference: response.reference,
-                type: "firs",
+                type: "TIN",
                 verified: true,
                 applicationId: application.id,
                 amount: application.price
@@ -234,7 +234,7 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
         <div className="flex items-center gap-3">
           <Receipt className="w-6 h-6 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-800">
-            FIRS Tax Registration
+            TIN Tax Registration
           </h3>
         </div>
         <span
@@ -273,7 +273,7 @@ const FIRSApplicationSummary = ({ application, onViewFull }) => {
               </p>
             </div>
             <p className="text-sm text-emerald-800 mb-2">
-              Your FIRS tax registration has been approved. Please proceed with
+              Your TIN tax registration has been approved. Please proceed with
               payment to complete the process.
             </p>
             <div className="flex items-baseline gap-1 mb-2">
@@ -418,7 +418,7 @@ export function FirsComplianceForm() {
       }
     };
 
-    const fetchFirsApplication = async () => {
+    const fetchTINApplication = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/firs-application`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -447,14 +447,14 @@ export function FirsComplianceForm() {
           });
         }
       } catch (err) {
-        console.error("Failed to fetch FIRS application:", err);
-        toast.error("Failed to fetch your FIRS application");
+        console.error("Failed to fetch TIN application:", err);
+        toast.error("Failed to fetch your TIN application");
       } finally {
         setFetching(false);
       }
     };
 
-    fetchFirsApplication();
+    fetchTINApplication();
   }, [isOpen, token]);
 
   const handleClose = () => setIsOpen(false);
@@ -557,7 +557,7 @@ export function FirsComplianceForm() {
         }
       }
 
-      const res = await fetch(`${API_BASE_URL}/firs-application`, {
+      const res = await fetch(`${API_BASE_URL}/TIN-application`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body
@@ -565,11 +565,11 @@ export function FirsComplianceForm() {
 
       const data = await res.json();
       if (data.success) {
-        toast.success("FIRS application saved successfully!");
+        toast.success("TIN application saved successfully!");
         handleClose();
         window.location.reload();
       } else {
-        toast.error(data.message || "Failed to save FIRS application");
+        toast.error(data.message || "Failed to save TIN application");
       }
     } catch (err) {
       console.error(err);
@@ -583,7 +583,7 @@ export function FirsComplianceForm() {
     <>
       <div className="text-center my-6">
         {hasApplication && applicationData ? (
-          <FIRSApplicationSummary
+          <TINApplicationSummary
             application={applicationData}
             onViewFull={() => setIsOpen(true)}
           />
@@ -593,7 +593,7 @@ export function FirsComplianceForm() {
             className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             <Receipt className="w-5 h-5 inline-block mr-2 -mt-0.5" />
-            Open FIRS Tax Registration Form
+            Open TIN  Registration Form
           </button>
         )}
       </div>
@@ -611,7 +611,7 @@ export function FirsComplianceForm() {
               <div>
                 <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                   <Receipt className="w-6 h-6 text-blue-600" />
-                  FIRS Tax Registration Form
+                  TIN  Registration Form
                 </h3>
                 <p className="text-sm text-slate-600 mt-1">
                   Form TRIF/2006/001 - Federal Inland Revenue Service
@@ -728,7 +728,7 @@ export function FirsComplianceForm() {
                       />
 
                       <Input
-                        label="Commencement Date (date your business started generating income or became liable to tax, as required by FIRS.)"
+                        label="Commencement Date (date your business started generating income or became liable to tax, as required by TIN.)"
                         name="commencementDate"
                         type="date"
                         required
@@ -999,9 +999,9 @@ export function FirsComplianceForm() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
-                        label="Tax Office (Your assigned FIRS tax office)"
+                        label="Tax Office (Your assigned TIN tax office)"
                         name="taxOffice"
-                        placeholder="FIRS Integrated Tax Office (MSTO or GTO)"
+                        placeholder="TIN Integrated Tax Office (MSTO or GTO)"
                         required
                         value={formData.taxOffice}
                         onChange={handleChange}
@@ -1140,7 +1140,7 @@ export function FirsComplianceForm() {
                   ) : (
                     <>
                       <Receipt className="w-5 h-5" />
-                      Submit FIRS Application
+                      Submit TIN Application
                     </>
                   )}
                 </button>

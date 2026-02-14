@@ -190,7 +190,7 @@ const SCUMLApplicationSummary = ({ application, onViewFull }) => {
     const reference = `SCUML-${application.id}-${Date.now()}`;
 
     const handler = window.PaystackPop.setup({
-      key: "pk_test_326283a4813bb26a9b6372c90c393ea21a46aff4",
+      key: "pk_live_ad719098c01b1d5e280aa45492782cb661b74d46",
       email: application.email || "customer@example.com",
       amount: application.price * 100,
       ref: reference,
