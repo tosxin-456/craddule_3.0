@@ -15,7 +15,7 @@ export function DocumentSelectionModal() {
   const [cacErrors, setCacErrors] = useState({});
 
   const token = localStorage.getItem("token");
-
+console.log(selectedDocs)
   // Fetch user's existing selection
   useEffect(() => {
     const fetchSelection = async () => {
@@ -108,12 +108,16 @@ export function DocumentSelectionModal() {
           </p>
 
           <div className="flex flex-col space-y-3">
-            {["CAC", "TIN", "SCUML"].map((doc) => (
-              <label key={doc} className="flex items-center space-x-2">
+            {[
+              { label: "CAC", value: "CAC" },
+              { label: "TIN", value: "FIRS" }, // show TIN but send FIRS
+              { label: "SCUML", value: "SCUML" }
+            ].map((doc) => (
+              <label key={doc.value} className="flex items-center space-x-2">
                 <input
                   type="checkbox"
-                  value={doc}
-                  checked={selectedDocs.includes(doc)}
+                  value={doc.value}
+                  checked={selectedDocs.includes(doc.value)}
                   onChange={(e) => {
                     const value = e.target.value;
                     setSelectedDocs((prev) =>
@@ -124,7 +128,7 @@ export function DocumentSelectionModal() {
                   }}
                   className="h-4 w-4"
                 />
-                <span>{doc}</span>
+                <span>{doc.label}</span>
               </label>
             ))}
           </div>
