@@ -499,9 +499,18 @@ export function CacComplianceForm() {
   };
 
   const handleDirectorChange = (index, key, value) => {
-    const directors = [...(formData.directors || [])];
-    directors[index] = { ...directors[index], [key]: value };
-    setFormData((prev) => ({ ...prev, directors }));
+    setFormData((prev) => {
+      const directors = [...(prev.directors || [])];
+
+      // Multi-field update: pass null as key and an object as value
+      if (key === null && typeof value === "object") {
+        directors[index] = { ...directors[index], ...value };
+      } else {
+        directors[index] = { ...directors[index], [key]: value };
+      }
+
+      return { ...prev, directors };
+    });
   };
 
   const addDirector = () => {
@@ -590,21 +599,29 @@ export function CacComplianceForm() {
       });
 
       // Append directors individually
-   formData.directors.forEach((director, index) => {
-     Object.keys(director).forEach((key) => {
-       const value = director[key];
-       if (value instanceof File) {
-         body.append(`directors[${index}][${key}]`, value);
-       } else if (value !== null && value !== undefined) {
-         if (typeof value === "object") {
-           body.append(`directors[${index}][${key}]`, JSON.stringify(value)); // <-- stringify objects
-         } else {
-           body.append(`directors[${index}][${key}]`, value);
-         }
-       }
-     });
-   });
+      // Append directors individually
+      formData.directors.forEach((director, index) => {
+        Object.keys(director).forEach((key) => {
+          const value = director[key];
 
+          // Skip blob preview URLs entirely
+          if (key.endsWith("Url")) return;
+
+          if (value instanceof File) {
+            // Append file with a clean key name (strip "File" suffix to match backend)
+            const fieldName = key.replace(/File$/, ""); // "signatureFile" → "signature"
+            body.append(`directors[${index}][${fieldName}]`, value);
+          } else if (value !== null && value !== undefined) {
+            body.append(`directors[${index}][${key}]`, value);
+          }
+        });
+      });
+
+      // Print all keys and values in the FormData
+      console.log("FormData contents:");
+      for (let pair of body.entries()) {
+        console.log(pair[0], pair[1]);
+      }
 
       // Submit the form
       const res = await fetch(`${API_BASE_URL}/cac-application`, {
@@ -618,7 +635,7 @@ export function CacComplianceForm() {
       if (data.success) {
         toast.success("CAC application saved successfully!");
         handleClose();
-        window.location.reload();
+        // window.location.reload();
       } else {
         toast.error(data.message || "Failed to save CAC application");
       }
@@ -1144,6 +1161,7 @@ export function CacComplianceForm() {
                                 </p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* ── Director Signature ── */}
                                   <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
                                       Signature *
@@ -1151,28 +1169,21 @@ export function CacComplianceForm() {
                                     <input
                                       type="file"
                                       accept="image/*"
-                                      className="w-full px-3 py-2 border ..."
+                                      className="w-full px-3 py-2 border rounded-lg"
                                       onChange={(e) => {
                                         const file = e.target.files[0];
                                         if (!file) return;
-
                                         if (!file.type.startsWith("image/")) {
                                           toast.error(
                                             "Please upload only image files"
                                           );
                                           return;
                                         }
-
-                                        handleDirectorChange(
-                                          index,
-                                          "signature",
-                                          file
-                                        ); // save file
-                                        handleDirectorChange(
-                                          index,
-                                          "signatureUrl",
-                                          URL.createObjectURL(file) // save URL for preview
-                                        );
+                                        handleDirectorChange(index, null, {
+                                          signatureFile: file,
+                                          signatureUrl:
+                                            URL.createObjectURL(file)
+                                        });
                                       }}
                                     />
                                     {director.signatureUrl && (
@@ -1183,11 +1194,96 @@ export function CacComplianceForm() {
                                         className="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
                                       >
                                         <ExternalLink className="w-4 h-4" />
-                                        View signature
+                                        View Signature
                                       </a>
                                     )}
                                   </div>
 
+                                  {/* ── Proof of Identity ── */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                      Proof of Identity *
+                                      <span className="ml-1 text-xs text-slate-500 font-normal">
+                                        (Passport, Driver's License, NIN slip,
+                                        Voter's Card — image)
+                                      </span>
+                                    </label>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="w-full px-3 py-2 border rounded-lg"
+                                      onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+                                        if (!file.type.startsWith("image/")) {
+                                          toast.error(
+                                            "Please upload only image files"
+                                          );
+                                          return;
+                                        }
+                                        handleDirectorChange(index, null, {
+                                          proofOfIdentityFile: file,
+                                          proofOfIdentityUrl:
+                                            URL.createObjectURL(file)
+                                        });
+                                      }}
+                                    />
+                                    {director.proofOfIdentityUrl && (
+                                      <a
+                                        href={`${IMAGE_URL}${director.proofOfIdentityUrl}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                      >
+                                        <ExternalLink className="w-4 h-4" />
+                                        View Proof of Identity
+                                      </a>
+                                    )}
+                                  </div>
+
+                                  {/* ── Utility Bill / Proof of Address ── */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                      Utility Bill / Proof of Address *
+                                      <span className="ml-1 text-xs text-slate-500 font-normal">
+                                        (NEPA/EKEDC bill, water rate, waste bill
+                                        — must show name & address)
+                                      </span>
+                                    </label>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="w-full px-3 py-2 border rounded-lg"
+                                      onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+                                        if (!file.type.startsWith("image/")) {
+                                          toast.error(
+                                            "Please upload only image files"
+                                          );
+                                          return;
+                                        }
+                                        handleDirectorChange(index, null, {
+                                          utilityBillFile: file,
+                                          utilityBillUrl:
+                                            URL.createObjectURL(file)
+                                        });
+                                      }}
+                                    />
+                                    {director.utilityBillUrl && (
+                                      <a
+                                        href={`${IMAGE_URL}${director.utilityBillUrl}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                      >
+                                        <ExternalLink className="w-4 h-4" />
+                                        View Utility Bill
+                                      </a>
+                                    )}
+                                  </div>
+
+                                  {/* Consent Date */}
                                   <input
                                     type="date"
                                     placeholder="Date of Consent"
