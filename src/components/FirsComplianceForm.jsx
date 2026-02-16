@@ -557,7 +557,7 @@ export function FirsComplianceForm() {
         }
       }
 
-      const res = await fetch(`${API_BASE_URL}/TIN-application`, {
+      const res = await fetch(`${API_BASE_URL}/firs-application`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body

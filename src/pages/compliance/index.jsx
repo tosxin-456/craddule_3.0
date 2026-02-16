@@ -610,9 +610,16 @@ function DocumentModal({ item, onClose, onSubmit }) {
           {/* File Upload */}
           <div>
             <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5">
-              Upload Document
+              Compliance Document for {item.title}
               <span className="text-red-500 ml-1">*</span>
             </label>
+
+            <p className="text-xs text-slate-500 mb-3">
+              Please upload official documentation that demonstrates compliance
+              with <span className="font-medium">{item.fullName}</span>. This
+              document is required for verification and approval.
+            </p>
+
             <div
               onClick={() => fileInputRef.current?.click()}
               className="w-full px-4 py-6 border-2 border-dashed border-slate-300 rounded-lg hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer"
@@ -623,8 +630,9 @@ function DocumentModal({ item, onClose, onSubmit }) {
                 onChange={handleFileChange}
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png"
-                aria-label="Upload document"
+                aria-label={`Upload compliance document for ${item.title}`}
               />
+
               {selectedFile ? (
                 <div className="flex items-center justify-center gap-3 text-green-600">
                   <FileText className="w-5 h-5" />
@@ -639,9 +647,11 @@ function DocumentModal({ item, onClose, onSubmit }) {
                 <div className="flex flex-col items-center justify-center gap-2 text-slate-500">
                   <Upload className="w-6 h-6" />
                   <p className="text-sm font-medium">
-                    Click to upload document
+                    Click to upload your compliance document
                   </p>
-                  <p className="text-xs">PDF, JPG, or PNG (max 10MB)</p>
+                  <p className="text-xs">
+                    Accepted formats: PDF, JPG, or PNG (maximum 10MB)
+                  </p>
                 </div>
               )}
             </div>
