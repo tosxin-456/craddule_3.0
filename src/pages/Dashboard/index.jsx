@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
   Lock,
@@ -9,7 +10,9 @@ import {
   Upload,
   Target,
   Rocket,
-  Shield
+  Shield,
+  ClipboardList,
+  ChevronRight
 } from "lucide-react";
 import { API_BASE_URL } from "../../config/apiConfig";
 import StartFlowModal from "../../components/StartFlowModal";
@@ -17,10 +20,10 @@ import { DocumentSelectionModal } from "../../components/DocumentSelection";
 
 export default function DashboardHome() {
   const [data, setData] = useState(null);
-
   const [tickets, setTickets] = useState([]);
   const [ticketLoading, setTicketLoading] = useState(true);
   const [startFlowOpen, setStartFlowOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchTickets();
@@ -64,7 +67,6 @@ export default function DashboardHome() {
 
         const data = await res.json();
 
-        // if not seen, open it
         if (data?.popUpModal === false) {
           setStartFlowOpen(true);
         }
@@ -94,6 +96,31 @@ export default function DashboardHome() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Admin Banner */}
+      <div
+        className="w-full bg-gray-900 text-white px-8 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-800 transition-colors group"
+        onClick={() => navigate("/dashboard/compliance")}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-white/10 rounded-lg">
+            <ClipboardList className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex items-center gap-2">
+            {/* <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+              Admin
+            </span> */}
+            <span className="text-gray-600">·</span>
+            <span className="text-sm font-medium text-gray-200">
+              Manage Compliances
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-gray-400 group-hover:text-white transition-colors">
+          <span className="text-xs">Go to Compliance Panel</span>
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="absolute inset-0 opacity-10">
@@ -114,9 +141,11 @@ export default function DashboardHome() {
           </p>
         </div>
       </div>
+
       <div className="w-fit m-auto">
         <DocumentSelectionModal />
       </div>
+
       <div className="px-8 py-8 space-y-8 max-w-7xl mx-auto">
         {/* Progress Overview */}
         <section>
@@ -161,19 +190,6 @@ export default function DashboardHome() {
                 <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                   <AlertCircle className="w-6 h-6 text-white" />
                 </div>
-                {/* <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-white mb-2">
-                    Next Required Action
-                  </h3>
-                  <p className="text-blue-100 mb-6 max-w-xl">
-                    {nextAction.description}
-                  </p>
-                  <button className="group px-6 py-3 bg-white text-blue-700 rounded-xl font-medium hover:bg-blue-50 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">
-                    <Upload className="w-4 h-4" />
-                    Upload Document
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div> */}
               </div>
             </div>
           </section>
@@ -197,7 +213,6 @@ export default function DashboardHome() {
               value={ticketLoading ? "..." : tickets.length}
               subtitle="Your open support requests"
             />
-
             <InfoCard
               icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
               title="Milestones"

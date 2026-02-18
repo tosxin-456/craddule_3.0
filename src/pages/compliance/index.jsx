@@ -8,7 +8,8 @@ import {
   Receipt,
   X,
   Upload,
-  AlertCircle
+  AlertCircle,
+  PlusCircle
 } from "lucide-react";
 
 import { useState, useEffect, useRef } from "react";
@@ -21,12 +22,28 @@ export default function Compliance() {
   const [complianceItems, setComplianceItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState(false);
+  const [requestItem, setRequestItem] = useState(null);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showMissingDocModal, setShowMissingDocModal] = useState(false);
+  const [error, setError] = useState(null);
+  const initialFormState = {
+    reason: "",
+    preferredDelivery: "",
+    urgencyLevel: ""
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   const token = localStorage.getItem("token");
 
   useEffect(() => {
-    fetchComplianceItems();
-    fetchAuthorizationStatus();
+    const init = async () => {
+      await fetchComplianceItems();
+      await fetchRequests();
+      fetchAuthorizationStatus();
+    };
+
+    init();
   }, []);
 
   const fetchComplianceItems = async () => {
@@ -55,7 +72,6 @@ export default function Compliance() {
       console.log("Authorization response:", data);
 
       if (data.success && data.authorization) {
-        // Handle both boolean and integer (1/0) values
         const isAuthorized =
           data.authorization.authorized === true ||
           data.authorization.authorized === 1;
@@ -67,12 +83,44 @@ export default function Compliance() {
     }
   };
 
+  const fetchRequests = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/request`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        const requests = data.data;
+
+        setComplianceItems((prevItems) =>
+          prevItems.map((item) => {
+            const existingRequest = requests.find(
+              (req) => req.userComplianceId === item.id
+            );
+
+            return {
+              ...item,
+              request: existingRequest || null,
+              complianceStatus:
+                existingRequest?.status === "Pending"
+                  ? "Pending"
+                  : item.complianceStatus
+            };
+          })
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching requests:", err);
+    }
+  };
+
   const handleSubmitDocument = async (itemId, formData) => {
     try {
       const body = new FormData();
       body.append("itemId", itemId);
 
-      // append all other form fields
       Object.keys(formData).forEach((key) => {
         if (formData[key] !== undefined) {
           body.append(key, formData[key]);
@@ -125,12 +173,23 @@ export default function Compliance() {
                 authorize them.
               </p>
             </div>
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-center min-w-[120px] sm:min-w-[140px] shadow-lg">
-              <div className="text-2xl sm:text-3xl font-bold text-white">
-                {completedCount}/{complianceItems.length}
-              </div>
-              <div className="text-xs text-blue-100 mt-1 font-medium">
-                Completed
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* Request Missing Document Button */}
+              <button
+                onClick={() => setShowMissingDocModal(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white hover:from-indigo-700 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg text-sm font-medium whitespace-nowrap"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Request Missing Compliance
+              </button>
+
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-center min-w-[120px] sm:min-w-[140px] shadow-lg">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
+                  {completedCount}/{complianceItems.length}
+                </div>
+                <div className="text-xs text-blue-100 mt-1 font-medium">
+                  Completed
+                </div>
               </div>
             </div>
           </div>
@@ -188,23 +247,41 @@ export default function Compliance() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                         <StatusBadge status={item.complianceStatus} />
 
-                        {/* Show button only if authorized AND status is Not Started */}
-                        {authStatus &&
-                          item.complianceStatus === "Not Started" && (
-                            <button
-                              onClick={() => setSelectedItem(item)}
-                              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
-                            >
-                              <FilePlus className="w-4 h-4" />
-                              Upload Document
-                            </button>
-                          )}
+                        {authStatus && (
+                          <div className="flex flex-col gap-3 w-full sm:w-auto">
+                            {item.complianceStatus === "Not Started" && (
+                              <button
+                                onClick={() => setSelectedItem(item)}
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600 transition-all shadow-md hover:shadow-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
+                              >
+                                <FilePlus className="w-4 h-4" />
+                                Upload Document
+                              </button>
+                            )}
 
-                        {/* Show message if not authorized */}
+                            {item.request &&
+                            item.request.status === "Pending" ? (
+                              <div className="text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 italic">
+                                Craddule will get back to you
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setRequestItem(item);
+                                  setShowRequestModal(true);
+                                }}
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-600 to-purple-500 text-white hover:from-purple-700 hover:to-purple-600 transition-all shadow-md hover:shadow-lg text-xs sm:text-sm font-medium w-full sm:w-auto"
+                              >
+                                Request from Craddule
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         {!authStatus &&
                           item.complianceStatus === "Not Started" && (
                             <div className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 italic">
-                              Grant authorization below to fill this document
+                              Grant authorization below to upload this document
                             </div>
                           )}
                       </div>
@@ -213,6 +290,111 @@ export default function Compliance() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Request from Craddule Modal */}
+        {showRequestModal && requestItem && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => {
+              setShowRequestModal(false);
+              setRequestItem(null);
+              setFormData(initialFormState);
+              setError(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-semibold mb-1">
+                Request from Craddule
+              </h2>
+
+              <p className="text-sm text-gray-500 mb-4">
+                You are requesting: <strong>{requestItem.title}</strong>
+              </p>
+
+              {error && (
+                <div className="bg-red-100 text-red-600 text-sm p-2 rounded mb-3">
+                  {error}
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setError(null);
+
+                  try {
+                    setLoading(true);
+
+                    const response = await fetch(`${API_BASE_URL}/request`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        userComplianceId: requestItem.id,
+                        reason: formData.reason
+                      })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                      throw new Error(data.message || "Something went wrong");
+                    }
+
+                    toast.success("Request submitted successfully!");
+                    await fetchRequests();
+                    setShowRequestModal(false);
+                    setRequestItem(null);
+                    setFormData(initialFormState);
+                  } catch (err) {
+                    setError(err.message);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <textarea
+                  placeholder="Why do you need this document?"
+                  required
+                  value={formData.reason}
+                  onChange={(e) =>
+                    setFormData({ ...formData, reason: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2 text-sm"
+                />
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRequestModal(false);
+                      setRequestItem(null);
+                      setFormData(initialFormState);
+                      setError(null);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-gray-200 text-sm"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={!requestItem || loading}
+                    className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm disabled:opacity-50"
+                  >
+                    {loading ? "Submitting..." : "Submit Request"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
@@ -263,6 +445,14 @@ export default function Compliance() {
           }}
         />
       )}
+
+      {/* Request Missing Document Modal */}
+      {showMissingDocModal && (
+        <RequestMissingDocumentModal
+          onClose={() => setShowMissingDocModal(false)}
+          token={token}
+        />
+      )}
     </div>
   );
 }
@@ -305,6 +495,223 @@ function StatusBadge({ status }) {
   );
 }
 
+// Request Missing Compliance Modal
+function RequestMissingDocumentModal({ onClose, token }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    complianceName: "",
+    complianceType: "",
+    reason: "",
+    additionalNotes: ""
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!formData.complianceName.trim()) {
+      setError("Compliance name is required.");
+      return;
+    }
+    if (!formData.complianceType.trim()) {
+      setError("Please enter a compliance type.");
+      return;
+    }
+    if (!formData.reason.trim()) {
+      setError("Please provide a reason for the request.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `${API_BASE_URL}/request-missing`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(formData)
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Something went wrong");
+      }
+
+      toast.success(
+        "Your request has been submitted! Craddule will review and get back to you."
+      );
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-100 rounded-lg p-2">
+              <PlusCircle className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                Request Missing Compliance
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Can't find a compliance item in your list? Request it here.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 hover:bg-white/80 transition-colors flex-shrink-0"
+            aria-label="Close modal"
+          >
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="overflow-y-auto flex-1 p-4 sm:p-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg mb-4 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Compliance Name */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Compliance Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Annual Tax Clearance Certificate"
+                value={formData.complianceName}
+                onChange={(e) =>
+                  setFormData({ ...formData, complianceName: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                required
+              />
+            </div>
+
+            {/* Compliance Type */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Compliance Type <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Tax Compliance, Operating License, Import/Export License..."
+                value={formData.complianceType}
+                onChange={(e) =>
+                  setFormData({ ...formData, complianceType: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                required
+              />
+            </div>
+
+            {/* Reason */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Why do you need this document?{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                placeholder="Describe why this document is required for your compliance..."
+                rows={3}
+                value={formData.reason}
+                onChange={(e) =>
+                  setFormData({ ...formData, reason: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
+                required
+              />
+            </div>
+
+            {/* Additional Notes */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Additional Notes{" "}
+                <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                placeholder="Any additional context, deadlines, or specific requirements..."
+                rows={2}
+                value={formData.additionalNotes}
+                onChange={(e) =>
+                  setFormData({ ...formData, additionalNotes: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
+              />
+            </div>
+
+            {/* Info Banner */}
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-indigo-700 leading-relaxed">
+                After submitting, Craddule will review your request and add the
+                compliance item to your list. You will be notified once it's
+                available.
+              </p>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 text-white hover:from-indigo-700 hover:to-indigo-600 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <PlusCircle className="w-4 h-4" />
+                Submit Request
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Document Modal
 function DocumentModal({ item, onClose, onSubmit }) {
   const [formData, setFormData] = useState({});
@@ -314,13 +721,9 @@ function DocumentModal({ item, onClose, onSubmit }) {
   const fileInputRef = useRef(null);
   const firstInputRef = useRef(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [documentType, setDocumentType] = useState("");
 
   useEffect(() => {
-    // Focus first input on mount
     firstInputRef.current?.focus();
-
-    // Prevent body scroll when modal is open
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "unset";
@@ -391,8 +794,6 @@ function DocumentModal({ item, onClose, onSubmit }) {
 
   const handleFieldChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
-
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
@@ -401,13 +802,11 @@ function DocumentModal({ item, onClose, onSubmit }) {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast.error("File size must be less than 10MB");
         return;
       }
 
-      // Validate file type
       const allowedTypes = [
         "application/pdf",
         "image/jpeg",
@@ -457,17 +856,10 @@ function DocumentModal({ item, onClose, onSubmit }) {
       });
       const data = await res.json();
       if (data.success) {
-        // Clear form
         setFormData({});
         setSelectedFile(null);
-
-        // Show success modal
         setShowSuccessModal(true);
       } else {
-        // toast.error({
-        //   message: data.message || "Submission failed",
-        //   type: "error"
-        // });
         console.log(data);
       }
     } catch (err) {
@@ -510,7 +902,7 @@ function DocumentModal({ item, onClose, onSubmit }) {
             <button
               onClick={() => {
                 setShowSuccessModal(false);
-                onClose(); // close main modal
+                onClose();
               }}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
@@ -542,7 +934,6 @@ function DocumentModal({ item, onClose, onSubmit }) {
             <X className="w-5 h-5" />
           </button>
         </div>
-
         {/* Form Fields */}
         <div className="overflow-y-auto max-h-[calc(95vh-240px)] sm:max-h-[calc(90vh-240px)] p-4 sm:p-6 space-y-4">
           {getFormFields().map((field, index) => (
@@ -657,7 +1048,6 @@ function DocumentModal({ item, onClose, onSubmit }) {
             </div>
           </div>
         </div>
-
         {/* Footer */}
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
           <button
@@ -693,7 +1083,6 @@ function DocumentModal({ item, onClose, onSubmit }) {
             opacity: 1;
           }
         }
-
         @keyframes slide-up {
           from {
             opacity: 0;
@@ -704,7 +1093,6 @@ function DocumentModal({ item, onClose, onSubmit }) {
             transform: translateY(0);
           }
         }
-
         @keyframes slide-in {
           from {
             opacity: 0;
@@ -715,15 +1103,12 @@ function DocumentModal({ item, onClose, onSubmit }) {
             transform: translateX(0);
           }
         }
-
         .animate-fade-in {
           animation: fade-in 0.2s ease-out;
         }
-
         .animate-slide-up {
           animation: slide-up 0.3s ease-out;
         }
-
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;
         }
@@ -790,20 +1175,17 @@ function AuthorizationModal({ onClose, onSuccess }) {
             documents, you hereby authorize Craddule to collect, store, process,
             and manage your documents through its document portal.
           </p>
-
           <p>
             You further grant Craddule the authority to act on your behalf,
             where applicable, for the purpose of preparing, submitting, and
             processing applications for licenses, permits, and related
             administrative requirements.
           </p>
-
           <p>
             All data and documents shall be processed in accordance with
             applicable Nigerian laws and regulations, including relevant data
             protection and privacy legislation.
           </p>
-
           <p>
             By selecting the checkbox below and proceeding, you confirm that you
             have read and understood this authorization, agree to its terms, and
