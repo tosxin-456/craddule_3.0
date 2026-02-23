@@ -231,106 +231,141 @@ const SCUMLApplicationSummary = ({ application, onViewFull }) => {
   };
 
   return (
-    <div className="p-6 bg-white rounded-xl border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <Shield className="w-6 h-6 text-purple-600" />
-          <h3 className="text-lg font-semibold text-gray-800">
-            SCUML Registration
-          </h3>
-        </div>
-        <span
-          className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
-            application.status
-          )}`}
-        >
-          {getStatusIcon(application.status)}{" "}
-          {application.status?.charAt(0).toUpperCase() +
-            application.status?.slice(1)}
-        </span>
-      </div>
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden w-full md:h-[250px] flex flex-col">
+      <div className="flex-1">
+        {/* Status bar */}
+        <div
+          className={`h-1 w-full ${
+            application.status === "approved"
+              ? "bg-purple-500"
+              : application.status === "rejected"
+                ? "bg-red-400"
+                : "bg-amber-400"
+          }`}
+        />
 
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Business Name</p>
-            <p className="text-sm font-medium text-gray-900">
-              {application.businessName || "N/A"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Business Category</p>
-            <p className="text-sm font-medium text-gray-900">
-              {application.businessCategory || "N/A"}
-            </p>
-          </div>
-        </div>
-
-        {isApprovedWithPayment && !application.isPaid && (
-          <div className="mt-4 p-4 bg-emerald-50 rounded-lg border-2 border-emerald-200">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">🎉</span>
-              <p className="text-sm font-semibold text-emerald-900">
-                Application Approved!
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center shrink-0">
+              <Shield className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900 tracking-tight leading-tight">
+                SCUML Registration
+              </p>
+              <p className="text-xs text-gray-400 font-normal mt-0.5">
+                Special Control Unit
               </p>
             </div>
-            <p className="text-sm text-emerald-800 mb-2">
-              Your SCUML registration has been approved. Please proceed with
-              payment to complete the registration.
+          </div>
+
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+              application.status
+            )}`}
+          >
+            {getStatusIcon(application.status)}
+            {application.status?.charAt(0).toUpperCase() +
+              application.status?.slice(1)}
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-gray-100 mx-5" />
+
+        {/* Fields */}
+        <div className="grid grid-cols-2 gap-4 px-5 py-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+              Business Name
             </p>
-            <div className="flex items-baseline gap-1 mb-2">
-              <span className="text-xs text-emerald-700">Amount:</span>
-              <span className="text-2xl font-bold text-emerald-900">
-                ₦{application.price.toLocaleString()}
+            <p className="text-sm font-semibold text-gray-900">
+              {application.businessName || "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+              Category
+            </p>
+            <p className="text-sm font-semibold text-gray-900">
+              {application.businessCategory || "—"}
+            </p>
+          </div>
+        </div>
+
+        {/* Payment Banner */}
+        {isApprovedWithPayment && !application.isPaid && (
+          <div className="mx-5 mb-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-100 border border-emerald-200 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full tracking-wide">
+                🎉 Approved
+              </span>
+            </div>
+            <p className="text-xs text-emerald-800 leading-relaxed mb-3">
+              Your SCUML registration is approved. Complete payment below to
+              finalise.
+            </p>
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-sm font-semibold text-emerald-700 self-center">
+                ₦
+              </span>
+              <span className="text-3xl font-bold text-emerald-900 leading-none">
+                {application.price.toLocaleString()}
               </span>
             </div>
           </div>
         )}
 
+        {/* Admin Feedback */}
         {application.adminFeedback && !isApprovedWithPayment && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-xs text-blue-700 font-medium mb-1">
-              Admin Feedback
+          <div className="mx-5 mb-4 bg-blue-50 border border-blue-100 rounded-xl p-3.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-blue-500 mb-1">
+              Admin Note
             </p>
-            <p className="text-sm text-blue-900">{application.adminFeedback}</p>
+            <p className="text-xs text-blue-900 leading-relaxed">
+              {application.adminFeedback}
+            </p>
           </div>
         )}
       </div>
+      {/* Actions */}
+      <div className="flex gap-2.5 px-5 pb-5">
+        {isApprovedWithPayment ? (
+          <>
+            <button
+              onClick={onViewFull}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            >
+              Details
+            </button>
 
-      {isApprovedWithPayment ? (
-        <div className="mt-4 flex gap-2">
+            {application.isPaid ? (
+              <button
+                disabled
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default flex items-center justify-center gap-1.5"
+              >
+                ✅ Paid
+              </button>
+            ) : (
+              <button
+                onClick={handlePay}
+                disabled={loading}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? "Processing…" : "Pay Now →"}
+              </button>
+            )}
+          </>
+        ) : (
           <button
             onClick={onViewFull}
-            className="flex-1 px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-all"
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg transition-all flex items-center justify-center gap-1.5"
           >
-            View Details
+            View Full Application →
           </button>
-
-          {application.isPaid ? (
-            <button
-              disabled
-              className="flex-1 px-4 py-2 rounded-lg bg-gray-300 text-white text-sm font-medium cursor-not-allowed"
-            >
-              Paid ✅
-            </button>
-          ) : (
-            <button
-              onClick={handlePay}
-              disabled={loading}
-              className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Processing..." : "Pay Now"}
-            </button>
-          )}
-        </div>
-      ) : (
-        <button
-          onClick={onViewFull}
-          className="mt-4 w-full px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow hover:shadow-md"
-        >
-          View Full Application
-        </button>
-      )}
+        )}
+      </div>
     </div>
   );
 };
