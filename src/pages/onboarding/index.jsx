@@ -443,11 +443,11 @@ const handleNext = async () => {
   // Analyzing State
   if (isAnalyzing) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-blue-50 flex items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse" />
           <div
-            className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse"
+            className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse"
             style={{ animationDelay: "1s" }}
           />
         </div>
@@ -479,7 +479,7 @@ const handleNext = async () => {
                 style={{ animationDelay: "0.2s" }}
               />
               <div
-                className="h-2 w-2 bg-pink-600 rounded-full animate-bounce"
+                className="h-2 w-2 bg-blue-600 rounded-full animate-bounce"
                 style={{ animationDelay: "0.4s" }}
               />
             </div>
@@ -506,11 +506,11 @@ const handleNext = async () => {
           : "from-orange-500 to-yellow-500";
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 p-4 sm:p-6 md:p-8 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-blue-50 p-4 sm:p-6 md:p-8 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse" />
           <div
-            className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse"
+            className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse"
             style={{ animationDelay: "1s" }}
           />
         </div>
@@ -679,11 +679,11 @@ const handleNext = async () => {
 
   // Onboarding Questions State
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-pink-50 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-blue-50 flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-indigo-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse" />
         <div
-          className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse"
+          className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse"
           style={{ animationDelay: "1s" }}
         />
       </div>
@@ -696,7 +696,7 @@ const handleNext = async () => {
         <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
           <div className="h-2 sm:h-3 bg-gradient-to-r from-slate-100 to-slate-50 relative overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600 transition-all duration-500 ease-out relative"
+              className="h-full bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-600 transition-all duration-500 ease-out relative"
               style={{ width: `${progress}%` }}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
@@ -758,7 +758,7 @@ const handleNext = async () => {
                 </div>
                 <div className="relative group">
                   <div
-                    className={`absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600 rounded-xl sm:rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 ${
+                    className={`absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-600 rounded-xl sm:rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 ${
                       isFocused ? "opacity-30" : ""
                     }`}
                   />
@@ -986,8 +986,8 @@ const handleNext = async () => {
                 disabled={!canProceed}
                 className="group relative flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-white transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none overflow-hidden shadow-xl"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-pink-600" />
-                <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-600" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <span className="relative text-sm sm:text-base">
                   {currentStep === questions.length - 1 ? "Submit" : "Next"}
                 </span>
